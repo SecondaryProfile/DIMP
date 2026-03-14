@@ -345,11 +345,6 @@ class Canvas(QWidget):
                     else:
                         self.path_points.clear()
                         self.update()
-                else:
-                    self.rotating_shape = self._hit_test(pos)
-                    if self.rotating_shape:
-                        self._save_state()
-                        self.rotation_start_angle = self._calculate_angle(pos)
 
     def mouseDoubleClickEvent(self, event: QMouseEvent):
         if event.button() == Qt.MouseButton.LeftButton:

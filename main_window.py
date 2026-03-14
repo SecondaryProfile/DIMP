@@ -405,13 +405,19 @@ class MainWindow(QMainWindow):
             self.canvas.clear_all()
 
     def _confirm_quit(self):
-        reply = QMessageBox.question(
-            self, "Quit",
-            "Are you sure you want to quit? Any unsaved changes will be lost.",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel,
-            QMessageBox.StandardButton.Cancel,
-        )
-        if reply == QMessageBox.StandardButton.Yes:
+        msg = QMessageBox(self)
+        msg.setWindowTitle("Quit")
+        msg.setText("Do you want to save your changes before quitting?")
+        save_btn = msg.addButton("Save and Quit", QMessageBox.ButtonRole.AcceptRole)
+        discard_btn = msg.addButton("Quit Without Saving", QMessageBox.ButtonRole.DestructiveRole)
+        msg.addButton("Cancel", QMessageBox.ButtonRole.RejectRole)
+        msg.setDefaultButton(save_btn)
+        msg.exec()
+        clicked = msg.clickedButton()
+        if clicked == save_btn:
+            if self._save_project():
+                QApplication.quit()
+        elif clicked == discard_btn:
             QApplication.quit()
 
     def _apply_palette(self, palette: IconPalette):
@@ -572,21 +578,23 @@ class MainWindow(QMainWindow):
             "Copy the res/ folder into your Android Studio project's app/src/main/ directory."
         )
 
-    def _save_project(self):
+    def _save_project(self) -> bool:
         filename, _ = QFileDialog.getSaveFileName(
             self, "Save Project", "", "Icon Project Files (*.iconproj);;All Files (*)"
         )
-        if filename:
-            data = {
-                "shapes": [s.to_dict() for s in self.canvas.shapes],
-                "palette": self.current_palette.name,
-                "show_background": self._show_bg_check.isChecked(),
-                "canvas_w": self.canvas.canvas_w,
-                "canvas_h": self.canvas.canvas_h,
-            }
-            with open(filename, 'w') as f:
-                json.dump(data, f, indent=2)
-            QMessageBox.information(self, "Success", f"Saved to {filename}")
+        if not filename:
+            return False
+        data = {
+            "shapes": [s.to_dict() for s in self.canvas.shapes],
+            "palette": self.current_palette.name,
+            "show_background": self._show_bg_check.isChecked(),
+            "canvas_w": self.canvas.canvas_w,
+            "canvas_h": self.canvas.canvas_h,
+        }
+        with open(filename, 'w') as f:
+            json.dump(data, f, indent=2)
+        QMessageBox.information(self, "Success", f"Saved to {filename}")
+        return True
 
     def _load_project(self):
         filename, _ = QFileDialog.getOpenFileName(
