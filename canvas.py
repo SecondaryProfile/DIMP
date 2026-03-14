@@ -7,7 +7,7 @@ from PyQt6.QtWidgets import QWidget, QInputDialog
 from PyQt6.QtCore import Qt, QPoint, QPointF, pyqtSignal, QEvent
 from PyQt6.QtGui import (
     QColor, QPainter, QPen, QMouseEvent, QWheelEvent, QKeyEvent, QPolygonF,
-    QPainterPath, QFont, QFontMetrics
+    QPainterPath, QFont, QFontMetrics, QPixmap
 )
 
 from models import CLOSE_THRESHOLD, IconPalette, ShapeType, ToolMode, Shape
@@ -919,3 +919,21 @@ class Canvas(QWidget):
         return (f'<text x="{int(shape.start_x)}" y="{text_y}" '
                 f'font-family="{shape.font_family}" font-size="{shape.font_size}pt" '
                 f'fill="{color}" {tr}>{safe_text}</text>')
+
+    def render_to_pixmap(self, pixel_size: int) -> QPixmap:
+        """Render the canvas to a square QPixmap at the given pixel size."""
+        pm = QPixmap(self.canvas_w, self.canvas_h)
+        if self.show_background:
+            pm.fill(self.background_color)
+        else:
+            pm.fill(Qt.GlobalColor.transparent)
+        painter = QPainter(pm)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        for shape in self.shapes:
+            self._draw_shape(painter, shape)
+        painter.end()
+        return pm.scaled(
+            pixel_size, pixel_size,
+            Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation,
+        )

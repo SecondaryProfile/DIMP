@@ -1,4 +1,5 @@
 import json
+import os
 from typing import List
 
 from PyQt6.QtWidgets import (
@@ -64,6 +65,14 @@ class MainWindow(QMainWindow):
         export_action = QAction("Export SVG", self)
         export_action.triggered.connect(self._export_svg)
         file_menu.addAction(export_action)
+
+        export_ios_action = QAction("Export for iOS (Xcode)…", self)
+        export_ios_action.triggered.connect(self._export_ios)
+        file_menu.addAction(export_ios_action)
+
+        export_android_action = QAction("Export for Android Studio…", self)
+        export_android_action.triggered.connect(self._export_android)
+        file_menu.addAction(export_android_action)
 
         # View menu
         view_menu = menubar.addMenu("View")
@@ -492,6 +501,76 @@ class MainWindow(QMainWindow):
             with open(filename, 'w') as f:
                 f.write(svg)
             QMessageBox.information(self, "Success", f"Exported to {filename}")
+
+    def _export_ios(self):
+        folder = QFileDialog.getExistingDirectory(self, "Choose output folder for iOS export")
+        if not folder:
+            return
+        appiconset = os.path.join(folder, "AppIcon.appiconset")
+        os.makedirs(appiconset, exist_ok=True)
+
+        # (logical_size, scale, idiom)
+        specs = [
+            (20, 1, "iphone"), (20, 2, "iphone"), (20, 3, "iphone"),
+            (29, 1, "iphone"), (29, 2, "iphone"), (29, 3, "iphone"),
+            (40, 1, "iphone"), (40, 2, "iphone"), (40, 3, "iphone"),
+            (60, 2, "iphone"), (60, 3, "iphone"),
+            (20, 1, "ipad"),   (20, 2, "ipad"),
+            (29, 1, "ipad"),   (29, 2, "ipad"),
+            (40, 1, "ipad"),   (40, 2, "ipad"),
+            (76, 1, "ipad"),   (76, 2, "ipad"),
+            (1024, 1, "ios-marketing"),
+        ]
+
+        images_json = []
+        seen = set()
+        for logical, scale, idiom in specs:
+            pixel = int(logical * scale)
+            filename = f"icon-{logical}@{scale}x-{idiom}.png"
+            if pixel not in seen:
+                pm = self.canvas.render_to_pixmap(pixel)
+                pm.save(os.path.join(appiconset, filename), "PNG")
+                seen.add(pixel)
+            images_json.append({
+                "filename": filename,
+                "idiom": idiom,
+                "scale": f"{scale}x",
+                "size": f"{logical}x{logical}",
+            })
+
+        contents = {"images": images_json, "info": {"author": "xcode", "version": 1}}
+        with open(os.path.join(appiconset, "Contents.json"), "w") as f:
+            json.dump(contents, f, indent=2)
+
+        QMessageBox.information(
+            self, "iOS Export Done",
+            f"AppIcon.appiconset written to:\n{appiconset}\n\n"
+            "Drag the AppIcon.appiconset folder into your Xcode Assets.xcassets."
+        )
+
+    def _export_android(self):
+        folder = QFileDialog.getExistingDirectory(self, "Choose output folder for Android export")
+        if not folder:
+            return
+        res_dir = os.path.join(folder, "res")
+        densities = [
+            ("mipmap-mdpi",    48),
+            ("mipmap-hdpi",    72),
+            ("mipmap-xhdpi",   96),
+            ("mipmap-xxhdpi",  144),
+            ("mipmap-xxxhdpi", 192),
+        ]
+        for density, size in densities:
+            dest = os.path.join(res_dir, density)
+            os.makedirs(dest, exist_ok=True)
+            pm = self.canvas.render_to_pixmap(size)
+            pm.save(os.path.join(dest, "ic_launcher.png"), "PNG")
+
+        QMessageBox.information(
+            self, "Android Export Done",
+            f"res/ folder written to:\n{res_dir}\n\n"
+            "Copy the res/ folder into your Android Studio project's app/src/main/ directory."
+        )
 
     def _save_project(self):
         filename, _ = QFileDialog.getSaveFileName(
