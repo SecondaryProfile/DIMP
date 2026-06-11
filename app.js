@@ -104,11 +104,30 @@ function nearSeg(p,x1,y1,x2,y2,tol) {
   const t=Math.max(0,Math.min(1,((p.x-x1)*dx+(p.y-y1)*dy)/(dx*dx+dy*dy)));
   return Math.hypot(p.x-(x1+t*dx),p.y-(y1+t*dy))<tol;
 }
+function nearQBez(p,x0,y0,cpx,cpy,x1,y1,tol) {
+  for (let t=0;t<=24;t++) {
+    const u=t/24,inv=1-u;
+    const bx=inv*inv*x0+2*inv*u*cpx+u*u*x1, by=inv*inv*y0+2*inv*u*cpy+u*u*y1;
+    if (Math.hypot(p.x-bx,p.y-by)<tol) return true;
+  }
+  return false;
+}
 function inShape(p,s) {
   if (s.type==='path') {
     const tol=s.stroke_width+5,pts=s.points,n=pts.length;
-    for (let i=0;i<n-1;i++) if (nearSeg(p,pts[i][0],pts[i][1],pts[i+1][0],pts[i+1][1],tol)) return true;
-    if (s.closed&&n>=3&&nearSeg(p,pts[n-1][0],pts[n-1][1],pts[0][0],pts[0][1],tol)) return true;
+    const segs=s.closed?n:n-1;
+    for (let i=0;i<segs;i++) {
+      const ei=(s.closed&&i===n-1)?0:i+1;
+      const [x1,y1]=pts[i],[x2,y2]=pts[ei];
+      const cv2=i<s.curves.length?s.curves[i]:0;
+      if (cv2) {
+        const mx=(x1+x2)/2,my=(y1+y2)/2,ddx=x2-x1,ddy=y2-y1,segl=Math.hypot(ddx,ddy);
+        if (segl>0) { if (nearQBez(p,x1,y1,mx-ddy/segl*cv2,my+ddx/segl*cv2,x2,y2,tol)) return true; }
+        else if (nearSeg(p,x1,y1,x2,y2,tol)) return true;
+      } else {
+        if (nearSeg(p,x1,y1,x2,y2,tol)) return true;
+      }
+    }
     return false;
   }
   if (s.type==='text') { const t=4; return p.x>=s.start_x-t&&p.x<=s.end_x+t&&p.y>=s.start_y-t&&p.y<=s.end_y+t; }
@@ -556,26 +575,63 @@ function refreshSwatches() {
 }
 function setColor(hex) { S.strokeColor=hex; document.getElementById('active-swatch').style.background=hex; }
 
-function _openColorPicker(initial, onInput, onDone) {
-  const inp = document.createElement('input');
-  inp.type = 'color'; inp.value = initial;
-  inp.style.cssText = 'position:fixed;top:-200px;left:-200px;opacity:0;';
-  document.body.appendChild(inp);
-  inp.addEventListener('input', e => onInput(e.target.value));
-  inp.addEventListener('change', e => { onDone(e.target.value); document.body.removeChild(inp); });
-  inp.addEventListener('blur', () => { setTimeout(()=>{ if(inp.parentNode) document.body.removeChild(inp); }, 200); });
-  requestAnimationFrame(() => inp.click());
+// ── Custom color picker panel ─────────────────────────────────────────────────
+let _cpCallback = null, _cpJustOpened = false;
+
+function openColorPicker(triggerEl, initialColor, callback) {
+  _cpJustOpened = true;
+  _cpCallback = callback;
+  const native = document.getElementById('cp-native');
+  const hexInp = document.getElementById('cp-hex');
+  native.value = initialColor;
+  hexInp.value = initialColor.replace('#','').toUpperCase();
+  // populate preset swatches
+  const sw = document.getElementById('cp-swatches');
+  sw.innerHTML = '';
+  const presets = [S.palette.bg, S.palette.icon, S.palette.acc,
+                   '#000000','#ffffff','#ff3b3b','#34c759','#007aff','#ff9500','#af52de'];
+  presets.forEach(c => {
+    const d = document.createElement('div');
+    d.className = 'cp-swatch'; d.style.background = c; d.title = c;
+    d.onclick = () => { native.value=c; hexInp.value=c.replace('#','').toUpperCase(); if(_cpCallback) _cpCallback(c); };
+    sw.appendChild(d);
+  });
+  // position
+  const panel = document.getElementById('color-picker-panel');
+  const r = triggerEl.getBoundingClientRect();
+  const pw=204, ph=220;
+  let left = r.left, top = r.bottom + 4;
+  if (left + pw > window.innerWidth - 8) left = window.innerWidth - pw - 8;
+  if (top + ph > window.innerHeight - 8) top = r.top - ph - 4;
+  panel.style.left = Math.max(8,left) + 'px';
+  panel.style.top  = Math.max(8,top)  + 'px';
+  panel.style.display = 'block';
 }
 
-function pickCustom() {
-  _openColorPicker(S.strokeColor, v => setColor(v), v => setColor(v));
+function cpNativeChange(v) {
+  document.getElementById('cp-hex').value = v.replace('#','').toUpperCase();
+  if (_cpCallback) _cpCallback(v);
+}
+function cpHexInput(v) {
+  if (/^[0-9a-fA-F]{6}$/.test(v)) {
+    document.getElementById('cp-native').value = '#'+v;
+    if (_cpCallback) _cpCallback('#'+v);
+  }
+}
+function closeColorPicker() {
+  document.getElementById('color-picker-panel').style.display = 'none';
+  _cpCallback = null;
+}
+
+function pickCustom(btn) {
+  openColorPicker(btn, S.strokeColor, v => setColor(v));
 }
 function pickSelColor() {
   if (!S.selected.length) return;
   let saved = false;
-  _openColorPicker(
+  openColorPicker(
+    document.getElementById('sel-color'),
     S.selected.at(-1).stroke_color,
-    v => { if (!saved) { saveState(); saved=true; } for(const s of S.selected) s.stroke_color=v; selWidget(); redraw(); },
     v => { if (!saved) { saveState(); saved=true; } for(const s of S.selected) s.stroke_color=v; selWidget(); redraw(); }
   );
 }
@@ -835,7 +891,7 @@ _tipPopup.id = 'tip-popup';
 document.body.appendChild(_tipPopup);
 
 function _showTip(el) {
-  _tipPopup.textContent = el.dataset.tip;
+  _tipPopup.innerHTML = (el.dataset.tip||'').replace(/</g,'&lt;').replace(/\n/g,'<br>');
   _tipPopup.style.display = 'block';
   const pw = _tipPopup.offsetWidth, ph = _tipPopup.offsetHeight;
   const r  = el.getBoundingClientRect();
@@ -860,11 +916,53 @@ document.querySelectorAll('.tip').forEach(tip => {
 });
 document.addEventListener('click', e => {
   _hideTip();
-  const menu = document.getElementById('export-menu');
-  if (menu && menu.style.display !== 'none' && !menu.contains(e.target)) {
-    menu.style.display = 'none';
+  const expMenu = document.getElementById('export-menu');
+  if (expMenu && expMenu.style.display !== 'none' && !expMenu.contains(e.target)) {
+    expMenu.style.display = 'none';
+  }
+  const cpPanel = document.getElementById('color-picker-panel');
+  if (cpPanel && cpPanel.style.display !== 'none' && !cpPanel.contains(e.target)) {
+    if (_cpJustOpened) { _cpJustOpened = false; }
+    else { closeColorPicker(); }
   }
 });
+
+// ── Version history ───────────────────────────────────────────────────────────
+const VERSIONS = [
+  { v:'0.0.20', notes:'Path curve hit-test (bezier-aware); custom color picker panel; About page; Version history footer; Favicon' },
+  { v:'0.0.19', notes:'Eyedrop tool rename; eraser hover highlight (red); Export Image dropdown with PNG/JPG/WebP support' },
+  { v:'0.0.18', notes:'Eraser and Eyedropper tools; corner radius greyed out unless shape selected; iOS/Android export tooltips' },
+  { v:'0.0.17', notes:'Grid moved to sidebar View section; per-tool instructions rewrite; iOS AppIcon.appiconset and Android mipmap export overhaul' },
+  { v:'0.0.16', notes:'Grid-based canvas sizing (snap points); auto stroke scaling; fixed-position tooltip popup (no more sidebar clipping)' },
+  { v:'0.0.15', notes:'Six UI fixes: mobile tab labels, color picker (three dots), default font Trebuchet MS, canvas size fields, styled instructions, tooltips' },
+  { v:'0.0.14', notes:'Unsaved-changes warning before page refresh or close (beforeunload guard)' },
+  { v:'0.0.13', notes:'Pinch-to-zoom on trackpad (wheel+ctrlKey); fix partial grid cells at canvas right/bottom edges' },
+  { v:'0.0.12', notes:'Touch drawing on mobile (touchstart/move/end → mouse events); double-tap to finish path; touch cancel support' },
+  { v:'0.0.11', notes:'Fix: toolbar tab bar showing on desktop — belt-and-suspenders @media rule' },
+  { v:'0.0.10', notes:'Mobile toolbar tabbed panels: Tools / Stroke / Color / Text / Utility / ⚙ sidebar' },
+  { v:'0.0.9',  notes:'Restore desktop styles exactly; keep mobile bottom-sheet sidebar fix' },
+  { v:'0.0.8',  notes:'Fix mobile UI: scrollable toolbar, bottom-sheet sidebar drawer' },
+  { v:'0.0.7',  notes:'Responsive layout: ribbon toolbar, mobile sidebar, fluid canvas sizing' },
+  { v:'0.0.6',  notes:'Codebase split into index.html, style.css, app.js' },
+  { v:'0.0.5',  notes:'Initial web app — HTML5 Canvas, pure JavaScript, no frameworks' },
+  { v:'0.0.4',  notes:'Removed Python/PyQt6 desktop app — DIMP is now web-only' },
+  { v:'0.0.3',  notes:'Improved project saving logic' },
+  { v:'0.0.2',  notes:'Added release support' },
+  { v:'0.0.1',  notes:'Initial commit — Python/PyQt6 desktop application' },
+];
+const CURRENT_VERSION = VERSIONS[0].v;
+
+function openAbout() { document.getElementById('about-overlay').style.display='flex'; }
+function closeAbout() { document.getElementById('about-overlay').style.display='none'; }
+
+function openVersionHistory() {
+  const el = document.getElementById('vh-list');
+  el.innerHTML = VERSIONS.map(v =>
+    `<div class="vh-item"><span class="vh-ver">v${v.v}</span><span class="vh-notes">${v.notes}</span></div>`
+  ).join('');
+  document.getElementById('vh-overlay').style.display='flex';
+}
+function closeVersionHistory() { document.getElementById('vh-overlay').style.display='none'; }
 
 // ── Unsaved-changes guard ─────────────────────────────────────────────────────
 window.addEventListener('beforeunload', e => {
@@ -873,3 +971,13 @@ window.addEventListener('beforeunload', e => {
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 refreshSwatches(); setColor(PALETTES[0].icon); initCanvas(); updateToolBtns(); switchTab('tools');
+
+// Version tag in footer
+const _verTag = document.getElementById('version-tag');
+if (_verTag) {
+  _verTag.textContent = 'v' + CURRENT_VERSION;
+  _verTag.dataset.tip = VERSIONS.slice(0,4).map(v=>`v${v.v} — ${v.notes}`).join('\n');
+  _verTag.addEventListener('mouseenter', ()=>_showTip(_verTag));
+  _verTag.addEventListener('mouseleave', _hideTip);
+  _verTag.addEventListener('click', openVersionHistory);
+}

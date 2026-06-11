@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>DIMP</title>
+  <link rel="icon" type="image/png" href="icon.png">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -43,7 +44,7 @@
     <div class="sw-col"><div class="swatch" id="sw-bg"></div><div class="sw-lbl">BG</div></div>
     <div class="sw-col"><div class="swatch" id="sw-icon"></div><div class="sw-lbl">Icon</div></div>
     <div class="sw-col"><div class="swatch" id="sw-acc"></div><div class="sw-lbl">Accent</div></div>
-    <button onclick="pickCustom()">…</button>
+    <button onclick="pickCustom(this)" title="Custom color">…</button>
     <div id="active-swatch" style="width:22px;height:22px;border:1px solid #888;border-radius:2px;flex-shrink:0"></div>
     <div class="tb-label">Color</div>
   </div>
@@ -166,6 +167,52 @@
 
 <div id="overlay" onclick="toggleSidebar()"></div>
 
+<!-- ── Color picker panel ──────────────────────────────────────────────── -->
+<div id="color-picker-panel">
+  <div class="cp-header">
+    <span>Pick Color</span>
+    <button class="cp-close" onclick="closeColorPicker()">×</button>
+  </div>
+  <input type="color" id="cp-native" oninput="cpNativeChange(this.value)" onchange="cpNativeChange(this.value)">
+  <div class="cp-hex-row">
+    <span class="cp-hash">#</span>
+    <input type="text" id="cp-hex" maxlength="6" placeholder="RRGGBB" oninput="cpHexInput(this.value)" onchange="cpHexInput(this.value)">
+  </div>
+  <div id="cp-swatches"></div>
+</div>
+
+<!-- ── About modal ─────────────────────────────────────────────────────── -->
+<div id="about-overlay" class="modal-overlay" onclick="closeAbout()" style="display:none">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <button class="modal-close" onclick="closeAbout()">×</button>
+    <h2 style="margin:0 0 4px;font-size:20px">DIMP</h2>
+    <p style="color:#888;font-size:12px;margin:0 0 14px">Digital Icon Maker & Painter</p>
+    <p>A web-based icon design tool built for speed and simplicity. Draw icons directly in your browser with vector shapes, paths, and text — no installs required.</p>
+    <hr style="margin:14px 0;border:none;border-top:1px solid #eee">
+    <p><strong>Features</strong></p>
+    <ul style="padding-left:18px;line-height:1.8">
+      <li>Vector shapes: line, circle, square, triangle, path</li>
+      <li>Bezier curve editing on paths</li>
+      <li>Eraser and eyedropper tools</li>
+      <li>Export: SVG, PNG, JPG, WebP, iOS AppIcon.appiconset, Android mipmap bundle</li>
+      <li>Color palettes, grid snapping, undo/redo</li>
+      <li>Responsive — works on desktop and mobile</li>
+    </ul>
+    <hr style="margin:14px 0;border:none;border-top:1px solid #eee">
+    <p style="color:#aaa;font-size:11px">Built with HTML5 Canvas · Pure JavaScript · No frameworks<br>
+    Source: <a href="https://github.com/SecondaryProfile/DIMP" target="_blank" style="color:#4a90d9">github.com/SecondaryProfile/DIMP</a></p>
+  </div>
+</div>
+
+<!-- ── Version history modal ───────────────────────────────────────────── -->
+<div id="vh-overlay" class="modal-overlay" onclick="closeVersionHistory()" style="display:none">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <button class="modal-close" onclick="closeVersionHistory()">×</button>
+    <h2 style="margin:0 0 14px;font-size:18px">Version History</h2>
+    <div id="vh-list"></div>
+  </div>
+</div>
+
 <div id="export-menu">
   <button onclick="exportFormat('svg')">SVG</button>
   <button onclick="exportFormat('png')">PNG</button>
@@ -174,6 +221,11 @@
 </div>
 
 <input type="file" id="file-in" style="display:none" accept=".iconproj" onchange="onFileLoad(this)">
+
+<footer id="footer">
+  <span id="version-tag" title="Click for full version history">v0.0.20</span>
+  <button onclick="openAbout()">About</button>
+</footer>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="app.js"></script>
