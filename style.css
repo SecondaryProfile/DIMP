@@ -7,6 +7,9 @@ html, body {
   font-size: 13px;
   background: #2b2b2b;
   color: #222;
+}
+
+body {
   display: flex;
   flex-direction: column;
 }
@@ -16,42 +19,41 @@ html, body {
   background: #e8e8e8;
   border-bottom: 1px solid #bbb;
   display: flex;
-  flex-direction: row;
   flex-wrap: wrap;
   align-items: stretch;
   flex-shrink: 0;
 }
 
-/* Groups always lay out horizontally — explicit direction prevents vertical stacking */
 .tb-group {
   display: flex;
-  flex-direction: row;
+  flex-direction: row;  /* explicit: prevents vertical stacking if groups wrap */
   align-items: center;
   gap: 2px;
-  padding: 5px 7px;
+  padding: 4px 8px;
   border-right: 1px solid #ccc;
   flex-shrink: 0;
   position: relative;
 }
 
-/* Labels only on wider screens, absolutely positioned so they don't affect layout flow */
-.tb-label { display: none; }
+.tb-sep { display: none; }
+
+.tb-label {
+  font-size: 9px;
+  color: #666;
+  position: absolute;
+  bottom: 2px;
+  left: 0; right: 0;
+  text-align: center;
+  pointer-events: none;
+}
 
 @media (min-width: 860px) {
   .tb-group { padding-bottom: 16px; }
-  .tb-label {
-    display: block;
-    position: absolute;
-    bottom: 2px; left: 0; right: 0;
-    font-size: 9px; color: #666;
-    text-align: center;
-    pointer-events: none;
-  }
 }
 
 /* ── Buttons ──────────────────────────────────────────────────────────────── */
 button {
-  padding: 4px 8px;
+  padding: 3px 7px;
   font-size: 12px;
   cursor: pointer;
   border: 1px solid #bbb;
@@ -59,8 +61,6 @@ button {
   background: #f5f5f5;
   white-space: nowrap;
   flex-shrink: 0;
-  line-height: 1.2;
-  touch-action: manipulation;
 }
 button:hover   { background: #e0e0e0; }
 button.active  { background: #4a90d9; color: #fff; border-color: #2d6aad; }
@@ -71,13 +71,13 @@ button.danger:hover { background: #e74c3c; }
 /* ── Inputs / Selects ─────────────────────────────────────────────────────── */
 input[type=number] {
   width: 52px;
-  padding: 3px 4px;
+  padding: 2px 4px;
   font-size: 12px;
   border: 1px solid #bbb;
   border-radius: 3px;
 }
 select {
-  padding: 3px 4px;
+  padding: 2px 4px;
   font-size: 12px;
   border: 1px solid #bbb;
   border-radius: 3px;
@@ -89,8 +89,9 @@ select {
 .swatch {
   width: 26px; height: 22px;
   border: 1px solid #888; border-radius: 2px;
-  cursor: pointer; flex-shrink: 0;
-  touch-action: manipulation;
+  cursor: pointer;
+  display: inline-block;
+  flex-shrink: 0;
 }
 .swatch:hover { border-color: #555; }
 .sw-col { display: flex; flex-direction: column; align-items: center; gap: 1px; }
@@ -109,11 +110,11 @@ select {
   justify-content: center;
   min-width: 0; min-height: 0;
 }
-#canvas { display: block; cursor: crosshair; touch-action: none; }
+#canvas { display: block; cursor: crosshair; max-width: 100%; }
 
-/* ── Sidebar (desktop) ────────────────────────────────────────────────────── */
+/* ── Sidebar ──────────────────────────────────────────────────────────────── */
 #sidebar {
-  width: clamp(155px, 18vw, 195px);
+  width: clamp(150px, 20vw, 200px);
   background: #f0f0f0;
   border-left: 1px solid #ccc;
   overflow-y: auto;
@@ -137,12 +138,17 @@ select {
 #sidebar-toggle { display: none; }
 #overlay        { display: none; }
 
+/* When a group wraps to a new row, give the last group room to fill */
+@media (max-width: 900px) {
+  .tb-group:last-of-type { border-right: none; flex-grow: 1; }
+}
+
 /* ─────────────────────────────────────────────────────────────────────────── */
 /* ── MOBILE (≤ 700px) ────────────────────────────────────────────────────── */
 /* ─────────────────────────────────────────────────────────────────────────── */
 @media (max-width: 700px) {
 
-  /* Single horizontally scrollable toolbar row — no wrapping, no vertical stacking */
+  /* Single scrollable row — no wrapping, no empty-space gaps */
   #toolbar {
     flex-wrap: nowrap;
     overflow-x: auto;
@@ -152,37 +158,41 @@ select {
   }
   #toolbar::-webkit-scrollbar { display: none; }
 
+  /* Groups stay horizontal, compact */
   .tb-group {
     padding: 4px 5px;
     flex-shrink: 0;
   }
 
-  /* Buttons and inputs a touch friendlier */
-  button { padding: 6px 8px; min-height: 32px; }
-  input[type=number] { width: 44px; min-height: 28px; }
+  /* Touch-friendlier controls */
+  button { padding: 6px 8px; font-size: 12px; touch-action: manipulation; }
+  input[type=number] { width: 44px; font-size: 11px; }
+  select { font-size: 11px; }
 
-  /* Font family selector is too wide for mobile — hide it, keep font size */
+  /* Font family selector is too wide on mobile — hide it, keep font-size input */
   #font-sel { display: none; }
+  #font-pt-label { display: none; }
 
-  /* Settings button visible on mobile to open the bottom sheet */
+  /* Narrower palette dropdown */
+  #pal-sel { max-width: 90px; }
+
+  /* Settings toggle: sticky on the right of the scrollable toolbar */
   #sidebar-toggle {
     display: flex;
     align-items: center;
-    justify-content: center;
     padding: 6px 12px;
-    min-height: 32px;
     font-size: 18px;
     border: none;
     border-left: 1px solid #ccc;
     border-radius: 0;
     background: #e8e8e8;
     flex-shrink: 0;
-    margin-left: auto;
     position: sticky;
     right: 0;
+    touch-action: manipulation;
   }
 
-  /* ── Sidebar → bottom sheet slides up from bottom ───────────────────────── */
+  /* ── Sidebar → bottom sheet ─────────────────────────────────────────────── */
   #sidebar {
     position: fixed;
     bottom: 0; left: 0; right: 0;
@@ -194,7 +204,7 @@ select {
     border-radius: 16px 16px 0 0;
     box-shadow: 0 -6px 32px rgba(0,0,0,0.25);
     z-index: 300;
-    /* transform moves by 100% of its own height — reliably hides it below viewport */
+    /* translateY(100%) hides by exactly the element's own height — reliable */
     transform: translateY(100%);
     transition: transform 0.28s ease;
     padding-top: 20px;
@@ -213,7 +223,7 @@ select {
 
   #sidebar.open { transform: translateY(0); }
 
-  /* Dim overlay behind the sheet */
+  /* Dim overlay behind the open sheet */
   #overlay {
     display: block;
     position: fixed;
@@ -227,7 +237,4 @@ select {
     background: rgba(0,0,0,0.45);
     pointer-events: auto;
   }
-
-  /* Sidebar content layout — two column grid for compactness */
-  #sidebar { flex-direction: column; }
 }
