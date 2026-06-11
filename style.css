@@ -138,8 +138,11 @@ select {
 #sidebar-toggle { display: none; }
 #overlay        { display: none; }
 
-/* Tab bar hidden on desktop */
+/* Tab bar: hidden above mobile breakpoint */
 #tb-tabs { display: none; }
+@media (min-width: 701px) {
+  #tb-tabs { display: none !important; }
+}
 
 /* When a group wraps to a new row, give the last group room to fill */
 @media (max-width: 900px) {
