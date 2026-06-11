@@ -611,5 +611,15 @@ function toggleSidebar() {
   document.getElementById('overlay').classList.toggle('active');
 }
 
+// ── Mobile tab switching ──────────────────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.tb-group').forEach(g => g.classList.remove('tb-active'));
+  document.querySelectorAll('#tb-tabs .tab-btn[data-tab]').forEach(b => b.classList.remove('active'));
+  const group = document.getElementById('tbg-' + name);
+  if (group) group.classList.add('tb-active');
+  const btn = document.querySelector('#tb-tabs [data-tab="' + name + '"]');
+  if (btn) btn.classList.add('active');
+}
+
 // ── Init ──────────────────────────────────────────────────────────────────────
-refreshSwatches(); setColor(PALETTES[0].icon); initCanvas(); updateToolBtns();
+refreshSwatches(); setColor(PALETTES[0].icon); initCanvas(); updateToolBtns(); switchTab('tools');

@@ -138,6 +138,9 @@ select {
 #sidebar-toggle { display: none; }
 #overlay        { display: none; }
 
+/* Tab bar hidden on desktop */
+#tb-tabs { display: none; }
+
 /* When a group wraps to a new row, give the last group room to fill */
 @media (max-width: 900px) {
   .tb-group:last-of-type { border-right: none; flex-grow: 1; }
@@ -148,49 +151,76 @@ select {
 /* ─────────────────────────────────────────────────────────────────────────── */
 @media (max-width: 700px) {
 
-  /* Single scrollable row — no wrapping, no empty-space gaps */
+  /* Toolbar stacks: tab bar row on top, active group panel below */
   #toolbar {
+    flex-direction: column;
     flex-wrap: nowrap;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-    align-items: center;
+    overflow: visible;
+    align-items: stretch;
   }
-  #toolbar::-webkit-scrollbar { display: none; }
 
-  /* Groups stay horizontal, compact */
-  .tb-group {
-    padding: 4px 5px;
+  /* ── Tab bar ──────────────────────────────────────────────────────────────── */
+  #tb-tabs {
+    display: flex;
+    flex-direction: row;
+    border-bottom: 1px solid #bbb;
     flex-shrink: 0;
   }
 
-  /* Touch-friendlier controls */
-  button { padding: 6px 8px; font-size: 12px; touch-action: manipulation; }
-  input[type=number] { width: 44px; font-size: 11px; }
-  select { font-size: 11px; }
-
-  /* Font family selector is too wide on mobile — hide it, keep font-size input */
-  #font-sel { display: none; }
-  #font-pt-label { display: none; }
-
-  /* Narrower palette dropdown */
-  #pal-sel { max-width: 90px; }
-
-  /* Settings toggle: sticky on the right of the scrollable toolbar */
-  #sidebar-toggle {
-    display: flex;
-    align-items: center;
-    padding: 6px 12px;
-    font-size: 18px;
+  .tab-btn {
+    flex: 1;
+    padding: 8px 2px;
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
     border: none;
-    border-left: 1px solid #ccc;
+    border-right: 1px solid #ccc;
     border-radius: 0;
     background: #e8e8e8;
-    flex-shrink: 0;
-    position: sticky;
-    right: 0;
+    white-space: nowrap;
     touch-action: manipulation;
+    color: #555;
   }
+  .tab-btn:last-child { border-right: none; }
+  .tab-btn.active {
+    background: #fff;
+    color: #1a3a6b;
+    font-weight: 600;
+    box-shadow: inset 0 -2px 0 #4a90d9;
+  }
+
+  /* ── Group panels ─────────────────────────────────────────────────────────── */
+  /* All groups hidden by default on mobile */
+  .tb-group {
+    display: none;
+    border-right: none;
+  }
+
+  /* Active group fills the full toolbar width */
+  .tb-group.tb-active {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 6px 10px;
+    width: 100%;
+    min-height: 44px;
+  }
+
+  /* Touch-friendlier controls inside panels */
+  .tb-group button { padding: 7px 10px; font-size: 12px; touch-action: manipulation; }
+  .tb-group input[type=number] { width: 50px; font-size: 12px; padding: 5px 4px; }
+  .tb-group select { font-size: 12px; max-width: 150px; }
+  .tb-group label { font-size: 12px; }
+
+  /* Font selector fully visible in the Text panel (its own full-width row) */
+  #font-sel  { max-width: 160px; }
+  #font-pt-label { font-size: 12px; }
+
+  /* Keep sidebar toggle hidden — settings lives in the tab bar as ⚙ */
+  #sidebar-toggle { display: none; }
 
   /* ── Sidebar → bottom sheet ─────────────────────────────────────────────── */
   #sidebar {
@@ -204,7 +234,6 @@ select {
     border-radius: 16px 16px 0 0;
     box-shadow: 0 -6px 32px rgba(0,0,0,0.25);
     z-index: 300;
-    /* translateY(100%) hides by exactly the element's own height — reliable */
     transform: translateY(100%);
     transition: transform 0.28s ease;
     padding-top: 20px;
