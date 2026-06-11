@@ -605,5 +605,11 @@ async function exportAndroid() {
   const a=document.createElement('a');a.href=URL.createObjectURL(await zip.generateAsync({type:'blob'}));a.download='android-res.zip';a.click();
 }
 
+// ── Sidebar toggle (mobile) ───────────────────────────────────────────────────
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('overlay').classList.toggle('active');
+}
+
 // ── Init ──────────────────────────────────────────────────────────────────────
 refreshSwatches(); setColor(PALETTES[0].icon); initCanvas(); updateToolBtns();

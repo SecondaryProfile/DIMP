@@ -10,66 +10,55 @@
 
 <div id="toolbar">
   <div class="tb-group">
-    <div class="tb-row">
-      <button id="tb-select"   onclick="setMode('select')">Select</button>
-      <button id="tb-line"     onclick="setTool('line')" class="active">Line</button>
-      <button id="tb-circle"   onclick="setTool('circle')">Circle</button>
-      <button id="tb-square"   onclick="setTool('square')">Square</button>
-      <button id="tb-triangle" onclick="setTool('triangle')">Triangle</button>
-      <button id="tb-path"     onclick="setTool('path')">Path</button>
-      <button id="tb-text"     onclick="setTool('text')">Text</button>
-    </div>
+    <button id="tb-select"   onclick="setMode('select')">Select</button>
+    <button id="tb-line"     onclick="setTool('line')" class="active">Line</button>
+    <button id="tb-circle"   onclick="setTool('circle')">Circle</button>
+    <button id="tb-square"   onclick="setTool('square')">Square</button>
+    <button id="tb-triangle" onclick="setTool('triangle')">Triangle</button>
+    <button id="tb-path"     onclick="setTool('path')">Path</button>
+    <button id="tb-text"     onclick="setTool('text')">Text</button>
     <div class="tb-label">Tools</div>
   </div>
-  <div class="tb-sep"></div>
 
   <div class="tb-group">
-    <div class="tb-row">
-      <label style="font-size:12px">W:</label>
-      <input type="number" id="sw" value="10" min="1" max="100" oninput="S.strokeWidth=+this.value">
-    </div>
+    <label style="font-size:12px">W:</label>
+    <input type="number" id="sw" value="10" min="1" max="100" oninput="S.strokeWidth=+this.value">
     <div class="tb-label">Stroke</div>
   </div>
-  <div class="tb-sep"></div>
 
   <div class="tb-group">
-    <div class="tb-row">
-      <select id="pal-sel" onchange="applyPalette(+this.value)"></select>
-      <div class="sw-col"><div class="swatch" id="sw-bg"></div><div class="sw-lbl">BG</div></div>
-      <div class="sw-col"><div class="swatch" id="sw-icon"></div><div class="sw-lbl">Icon</div></div>
-      <div class="sw-col"><div class="swatch" id="sw-acc"></div><div class="sw-lbl">Accent</div></div>
-      <button onclick="pickCustom()">…</button>
-      <div id="active-swatch" style="width:22px;height:22px;border:1px solid #888;border-radius:2px;flex-shrink:0"></div>
-    </div>
+    <select id="pal-sel" onchange="applyPalette(+this.value)"></select>
+    <div class="sw-col"><div class="swatch" id="sw-bg"></div><div class="sw-lbl">BG</div></div>
+    <div class="sw-col"><div class="swatch" id="sw-icon"></div><div class="sw-lbl">Icon</div></div>
+    <div class="sw-col"><div class="swatch" id="sw-acc"></div><div class="sw-lbl">Accent</div></div>
+    <button onclick="pickCustom()">…</button>
+    <div id="active-swatch" style="width:22px;height:22px;border:1px solid #888;border-radius:2px;flex-shrink:0"></div>
     <div class="tb-label">Color</div>
   </div>
-  <div class="tb-sep"></div>
 
   <div class="tb-group">
-    <div class="tb-row">
-      <select id="font-sel" onchange="S.textFontFamily=this.value;updateSelFont()" style="max-width:150px"></select>
-      <input type="number" id="font-sz" value="24" min="6" max="200" style="width:55px" oninput="S.textFontSize=+this.value;updateSelFont()">
-      <span style="font-size:12px">pt</span>
-    </div>
+    <select id="font-sel" onchange="S.textFontFamily=this.value;updateSelFont()"></select>
+    <input type="number" id="font-sz" value="24" min="6" max="200" style="width:52px" oninput="S.textFontSize=+this.value;updateSelFont()">
+    <span id="font-pt-label" style="font-size:12px">pt</span>
     <div class="tb-label">Text</div>
   </div>
-  <div class="tb-sep"></div>
 
   <div class="tb-group">
-    <div class="tb-row">
-      <button id="tb-grid" class="toggled" onclick="toggleGrid(this)">Grid</button>
-      <button onclick="undo()">Undo</button>
-      <button onclick="redo()">Redo</button>
-      <button class="danger" onclick="confirmClear()">Clear</button>
-    </div>
+    <button id="tb-grid" class="toggled" onclick="toggleGrid(this)">Grid</button>
+    <button onclick="undo()">Undo</button>
+    <button onclick="redo()">Redo</button>
+    <button class="danger" onclick="confirmClear()">Clear</button>
     <div class="tb-label">Utility</div>
   </div>
+
+  <button id="sidebar-toggle" onclick="toggleSidebar()" title="Properties">☰</button>
 </div>
 
 <div id="main">
   <div id="canvas-scroll">
     <canvas id="canvas"></canvas>
   </div>
+
   <div id="sidebar">
     <div class="s-title">Canvas Size</div>
     <div class="s-row"><label>W:</label><input type="number" id="cw" value="512" min="64" max="2048" step="64"></div>
@@ -125,6 +114,8 @@ orange handles=curve</div>
     <div id="info">Ready</div>
   </div>
 </div>
+
+<div id="overlay" onclick="toggleSidebar()"></div>
 
 <input type="color" id="color-in" style="display:none" oninput="onColorPick(this.value)">
 <input type="file"  id="file-in"  style="display:none" accept=".iconproj" onchange="onFileLoad(this)">
