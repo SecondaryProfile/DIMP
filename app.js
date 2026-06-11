@@ -27,7 +27,7 @@ const S = {
   snapEnabled:true, gridSnapEnabled:true,
   textFontFamily:'Arial Rounded MT Bold', textFontSize:24,
   palette:PALETTES[0],
-  canvasW:512, canvasH:512, zoom:1,
+  canvasW:512, canvasH:512, zoom:1, dirty:false,
   // interaction
   moving:[], moveStart:{x:0,y:0}, moveStartSnap:{x:0,y:0}, moveOrigins:[],
   rotating:null, rotAngle:0,
@@ -54,17 +54,20 @@ function canvasPos(e) {
 
 // ── Undo/Redo ─────────────────────────────────────────────────────────────────
 function saveState() {
+  S.dirty = true;
   S.undoStack.push(JSON.parse(JSON.stringify(S.shapes)));
   if (S.undoStack.length > 50) S.undoStack.shift();
   S.redoStack = [];
 }
 function undo() {
   if (!S.undoStack.length) return;
+  S.dirty = true;
   S.redoStack.push(JSON.parse(JSON.stringify(S.shapes)));
   S.shapes = S.undoStack.pop(); S.selected = []; selWidget(); redraw();
 }
 function redo() {
   if (!S.redoStack.length) return;
+  S.dirty = true;
   S.undoStack.push(JSON.parse(JSON.stringify(S.shapes)));
   S.shapes = S.redoStack.pop(); S.selected = []; selWidget(); redraw();
 }
@@ -539,6 +542,7 @@ function saveProject() {
   const data={ shapes:S.shapes.map(s=>({...s})), palette:S.palette.name, show_background:S.showBackground, canvas_w:S.canvasW, canvas_h:S.canvasH };
   const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));
   a.download='project.iconproj'; a.click();
+  S.dirty = false;
 }
 function onFileLoad(inp) {
   const f=inp.files[0]; if(!f) return;
@@ -550,7 +554,7 @@ function onFileLoad(inp) {
     palSel.value=PALETTES.indexOf(pal); S.palette=pal; S.bgColor=pal.bg; setColor(pal.icon); refreshSwatches();
     S.showBackground=d.show_background!==false; document.getElementById('chk-bg').checked=S.showBackground;
     if (d.canvas_w) { S.canvasW=d.canvas_w;S.canvasH=d.canvas_h;cv.width=S.canvasW;cv.height=S.canvasH; document.getElementById('cw').value=S.canvasW; document.getElementById('ch').value=S.canvasH; }
-    S.selected=[]; selWidget(); redraw();
+    S.selected=[]; S.dirty=false; selWidget(); redraw();
   } catch(err){alert('Load failed: '+err.message);} };
   r.readAsText(f); inp.value='';
 }
@@ -651,6 +655,11 @@ function switchTab(name) {
   const btn = document.querySelector('#tb-tabs [data-tab="' + name + '"]');
   if (btn) btn.classList.add('active');
 }
+
+// ── Unsaved-changes guard ─────────────────────────────────────────────────────
+window.addEventListener('beforeunload', e => {
+  if (S.dirty) { e.preventDefault(); e.returnValue = ''; }
+});
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 refreshSwatches(); setColor(PALETTES[0].icon); initCanvas(); updateToolBtns(); switchTab('tools');
