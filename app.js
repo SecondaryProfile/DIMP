@@ -486,7 +486,7 @@ function updateToolBtns() {
     el.classList.toggle('active',(S.mode==='select'&&t==='select')||(S.mode==='draw'&&t===S.tool));
   });
 }
-function toggleGrid(btn) { S.gridEnabled=!S.gridEnabled; btn.classList.toggle('toggled',S.gridEnabled); redraw(); }
+function toggleGrid() { S.gridEnabled=!S.gridEnabled; document.getElementById('chk-grid').checked=S.gridEnabled; redraw(); }
 
 // ── Palette & color ───────────────────────────────────────────────────────────
 const palSel=document.getElementById('pal-sel');
@@ -638,26 +638,72 @@ function renderOffscreen(sz) {
 }
 
 // ── iOS export ────────────────────────────────────────────────────────────────
+// ── iOS export — full AppIcon.appiconset bundle ───────────────────────────────
 async function exportIOS() {
   if (typeof JSZip==='undefined'){alert('JSZip not loaded.');return;}
-  const specs=[[20,1,'iphone'],[20,2,'iphone'],[20,3,'iphone'],[29,1,'iphone'],[29,2,'iphone'],[29,3,'iphone'],[40,1,'iphone'],[40,2,'iphone'],[40,3,'iphone'],[60,2,'iphone'],[60,3,'iphone'],[20,1,'ipad'],[20,2,'ipad'],[29,1,'ipad'],[29,2,'ipad'],[40,1,'ipad'],[40,2,'ipad'],[76,1,'ipad'],[76,2,'ipad'],[1024,1,'ios-marketing']];
-  const zip=new JSZip(),folder=zip.folder('AppIcon.appiconset'),seen=new Map(),images=[];
-  for (const [lg,sc,id] of specs) {
-    const px=lg*sc,fn=`icon-${lg}@${sc}x-${id}.png`;
-    if (!seen.has(px)) seen.set(px,await new Promise(r=>renderOffscreen(px).toBlob(r,'image/png')));
-    folder.file(fn,seen.get(px)); images.push({filename:fn,idiom:id,scale:`${sc}x`,size:`${lg}x${lg}`});
+  // [pt_size, scale, idiom]  —  pixel = pt * scale  (83.5@2x = 167px for iPad Pro)
+  const specs = [
+    [20,    2, 'iphone'], [20,    3, 'iphone'],
+    [29,    2, 'iphone'], [29,    3, 'iphone'],
+    [40,    2, 'iphone'], [40,    3, 'iphone'],
+    [60,    2, 'iphone'], [60,    3, 'iphone'],
+    [20,    1, 'ipad'],   [20,    2, 'ipad'],
+    [29,    1, 'ipad'],   [29,    2, 'ipad'],
+    [40,    1, 'ipad'],   [40,    2, 'ipad'],
+    [76,    1, 'ipad'],   [76,    2, 'ipad'],
+    [83.5,  2, 'ipad'],   // iPad Pro 9.7" / 10.5"
+    [1024,  1, 'ios-marketing'],
+  ];
+  const zip = new JSZip(), folder = zip.folder('AppIcon.appiconset');
+  const cache = new Map(), images = [];
+  for (const [pt, sc, idiom] of specs) {
+    const px = Math.round(pt * sc);
+    const fn = `Icon-${pt}@${sc}x${idiom === 'ipad' ? '~ipad' : ''}.png`;
+    if (!cache.has(px)) cache.set(px, await new Promise(r => renderOffscreen(px).toBlob(r, 'image/png')));
+    folder.file(fn, cache.get(px));
+    images.push({ idiom, scale:`${sc}x`, size:`${pt}x${pt}`, filename:fn });
   }
-  folder.file('Contents.json',JSON.stringify({images,info:{author:'xcode',version:1}},null,2));
-  const a=document.createElement('a');a.href=URL.createObjectURL(await zip.generateAsync({type:'blob'}));a.download='AppIcon.appiconset.zip';a.click();
+  folder.file('Contents.json', JSON.stringify({ images, info:{ author:'xcode', version:1 } }, null, 2));
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(await zip.generateAsync({ type:'blob' }));
+  a.download = `dimp_appiconset_ios_${_exportTs()}.zip`;
+  a.click();
 }
 
-// ── Android export ────────────────────────────────────────────────────────────
+// ── Android export — res/ launcher icon bundle ────────────────────────────────
 async function exportAndroid() {
   if (typeof JSZip==='undefined'){alert('JSZip not loaded.');return;}
-  const densities=[['mipmap-mdpi',48],['mipmap-hdpi',72],['mipmap-xhdpi',96],['mipmap-xxhdpi',144],['mipmap-xxxhdpi',192]];
-  const zip=new JSZip(),res=zip.folder('res');
-  for (const [d,sz] of densities) res.folder(d).file('ic_launcher.png',await new Promise(r=>renderOffscreen(sz).toBlob(r,'image/png')));
-  const a=document.createElement('a');a.href=URL.createObjectURL(await zip.generateAsync({type:'blob'}));a.download='android-res.zip';a.click();
+  const densities = [
+    ['mipmap-mdpi',    48],
+    ['mipmap-hdpi',    72],
+    ['mipmap-xhdpi',   96],
+    ['mipmap-xxhdpi',  144],
+    ['mipmap-xxxhdpi', 192],
+  ];
+  const zip = new JSZip(), res = zip.folder('res');
+  for (const [dir, sz] of densities) {
+    const blob = await new Promise(r => renderOffscreen(sz).toBlob(r, 'image/png'));
+    const f = res.folder(dir);
+    f.file('ic_launcher.png', blob);
+    f.file('ic_launcher_round.png', blob); // same art; devs replace foreground for adaptive
+  }
+  // Play Store high-res icon
+  res.folder('playstore').file('ic_launcher_512.png',
+    await new Promise(r => renderOffscreen(512).toBlob(r, 'image/png')));
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(await zip.generateAsync({ type:'blob' }));
+  a.download = `dimp_appiconset_android_${_exportTs()}.zip`;
+  a.click();
+}
+
+function _exportTs() {
+  const d = new Date();
+  return d.getFullYear() +
+    String(d.getMonth()+1).padStart(2,'0') +
+    String(d.getDate()).padStart(2,'0') + '_' +
+    String(d.getHours()).padStart(2,'0') +
+    String(d.getMinutes()).padStart(2,'0') +
+    String(d.getSeconds()).padStart(2,'0');
 }
 
 // ── Sidebar toggle (mobile) ───────────────────────────────────────────────────

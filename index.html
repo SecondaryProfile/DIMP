@@ -54,7 +54,6 @@
   </div>
 
   <div class="tb-group" id="tbg-utility">
-    <button id="tb-grid" class="toggled" onclick="toggleGrid(this)">Grid</button>
     <button onclick="undo()">Undo</button>
     <button onclick="redo()">Redo</button>
     <button class="danger" onclick="confirmClear()">Clear</button>
@@ -88,6 +87,7 @@
     </div>
     <hr class="s-sep">
     <div class="s-title">View</div>
+    <label class="s-check"><input type="checkbox" id="chk-grid" checked onchange="toggleGrid()"> Show Grid <span class="tip" data-tip="Toggles the visual snap grid overlay on the canvas. Grid lines appear at every 16px cell boundary.">?</span></label>
     <label class="s-check"><input type="checkbox" id="chk-bg" checked onchange="S.showBackground=this.checked;redraw()"> Show Background <span class="tip" data-tip="Shows or hides the background color layer. When off, the canvas is transparent (checkerboard pattern visible on export preview).">?</span></label>
     <label class="s-check"><input type="checkbox" id="chk-snap" checked onchange="S.snapEnabled=this.checked"> Snap on Rotate <span class="tip" data-tip="Hold Shift while rotating with right-drag to snap the angle to 45° increments.">?</span></label>
     <label class="s-check"><input type="checkbox" id="chk-gsnap" checked onchange="S.gridSnapEnabled=this.checked;redraw()"> Snap to Grid <span class="tip" data-tip="Snaps shape placement and movement to the 16px grid for precise alignment.">?</span></label>
@@ -106,42 +106,53 @@
     <button onclick="exportAndroid()">Export Android (zip)</button>
     <hr class="s-sep">
     <div id="instructions">
+
       <div class="ins-section">
-        <div class="ins-hdr">Desktop</div>
-        <div class="ins-row"><kbd>Drag</kbd><span>Draw / Move</span></div>
-        <div class="ins-row"><kbd>Right drag</kbd><span>Rotate</span></div>
-        <div class="ins-row"><kbd>Scroll</kbd><span>Fine-rotate</span></div>
-        <div class="ins-row"><kbd>Pinch</kbd><span>Zoom in/out</span></div>
-        <div class="ins-row"><kbd>Shift+drag</kbd><span>Angle snap</span></div>
-        <div class="ins-row"><kbd>Del</kbd><span>Delete shape</span></div>
-        <div class="ins-row"><kbd>Ctrl Z/Y</kbd><span>Undo / Redo</span></div>
+        <div class="ins-hdr">General</div>
+        <div class="ins-row"><kbd>Ctrl Z</kbd><span>Undo</span></div>
+        <div class="ins-row"><kbd>Ctrl Y</kbd><span>Redo</span></div>
+        <div class="ins-row"><kbd>Pinch</kbd><span>Zoom (trackpad / mobile)</span></div>
+        <div class="ins-note">Desktop: scroll wheel pans. Mobile: toolbar tabs switch panels.</div>
       </div>
+
       <div class="ins-section">
-        <div class="ins-hdr">Mobile</div>
-        <div class="ins-row"><kbd>Drag</kbd><span>Draw / Move</span></div>
-        <div class="ins-row"><kbd>Double-tap</kbd><span>Edit / Close path</span></div>
-      </div>
-      <div class="ins-section">
-        <div class="ins-hdr">Text tool</div>
-        <div class="ins-row"><kbd>Click</kbd><span>Place text</span></div>
-        <div class="ins-row"><kbd>Dbl-click</kbd><span>Edit text</span></div>
-        <div class="ins-row"><kbd>Drag corner</kbd><span>Resize</span></div>
-      </div>
-      <div class="ins-section">
-        <div class="ins-hdr">Path tool</div>
-        <div class="ins-row"><kbd>Click</kbd><span>Add point</span></div>
-        <div class="ins-row"><kbd>Click start</kbd><span>Close loop</span></div>
-        <div class="ins-row"><kbd>Right-click</kbd><span>Finish open</span></div>
-        <div class="ins-row"><kbd>Dbl-click</kbd><span>Finish open</span></div>
-        <div class="ins-row"><kbd>Del</kbd><span>Remove last pt</span></div>
-        <div class="ins-row"><kbd>Esc</kbd><span>Cancel</span></div>
-      </div>
-      <div class="ins-section">
-        <div class="ins-hdr">Select mode</div>
-        <div class="ins-row"><kbd>Click shape</kbd><span>Select</span></div>
+        <div class="ins-hdr">Select</div>
+        <div class="ins-row"><kbd>Click</kbd><span>Select shape</span></div>
         <div class="ins-row"><kbd>Shift+click</kbd><span>Multi-select</span></div>
-        <div class="ins-note">Select a path, then drag its orange handles to curve segments.</div>
+        <div class="ins-row"><kbd>Drag</kbd><span>Move shape(s)</span></div>
+        <div class="ins-row"><kbd>Right-drag</kbd><span>Rotate (desktop)</span></div>
+        <div class="ins-row"><kbd>Scroll</kbd><span>Fine-rotate (desktop)</span></div>
+        <div class="ins-row"><kbd>Shift+rotate</kbd><span>Snap to 45° (desktop)</span></div>
+        <div class="ins-row"><kbd>Del</kbd><span>Delete selected</span></div>
+        <div class="ins-note">Select a path and drag its orange handles to curve segments.</div>
       </div>
+
+      <div class="ins-section">
+        <div class="ins-hdr">Draw (Line / Circle / Square / Triangle)</div>
+        <div class="ins-row"><kbd>Drag</kbd><span>Draw shape</span></div>
+        <div class="ins-note">Desktop: drag from start to end. Mobile: same — drag finger across canvas.</div>
+      </div>
+
+      <div class="ins-section">
+        <div class="ins-hdr">Text</div>
+        <div class="ins-row"><kbd>Click</kbd><span>Place text</span></div>
+        <div class="ins-row"><kbd>Dbl-click</kbd><span>Edit text (desktop)</span></div>
+        <div class="ins-row"><kbd>Double-tap</kbd><span>Edit text (mobile)</span></div>
+        <div class="ins-row"><kbd>Drag corner</kbd><span>Resize text box</span></div>
+        <div class="ins-note">Font and size are set in the Text toolbar panel.</div>
+      </div>
+
+      <div class="ins-section">
+        <div class="ins-hdr">Path</div>
+        <div class="ins-row"><kbd>Click</kbd><span>Add point</span></div>
+        <div class="ins-row"><kbd>Click 1st pt</kbd><span>Close loop</span></div>
+        <div class="ins-row"><kbd>Dbl-click</kbd><span>Finish open path</span></div>
+        <div class="ins-row"><kbd>Right-click</kbd><span>Finish open (desktop)</span></div>
+        <div class="ins-row"><kbd>Double-tap</kbd><span>Finish open (mobile)</span></div>
+        <div class="ins-row"><kbd>Del</kbd><span>Remove last point</span></div>
+        <div class="ins-row"><kbd>Esc</kbd><span>Cancel path</span></div>
+      </div>
+
     </div>
     <hr class="s-sep">
     <div id="info">Ready</div>
