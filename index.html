@@ -26,7 +26,9 @@
     <button id="tb-square"   onclick="setTool('square')">Square</button>
     <button id="tb-triangle" onclick="setTool('triangle')">Triangle</button>
     <button id="tb-path"     onclick="setTool('path')">Path</button>
-    <button id="tb-text"     onclick="setTool('text')">Text</button>
+    <button id="tb-text"        onclick="setTool('text')">Text</button>
+    <button id="tb-eraser"      onclick="setTool('eraser')">Eraser</button>
+    <button id="tb-eyedropper"  onclick="setTool('eyedropper')">Pick</button>
     <div class="tb-label">Tools</div>
   </div>
 
@@ -79,11 +81,13 @@
     </div>
     <button onclick="applySize()">Apply Size</button>
     <hr class="s-sep">
-    <div class="s-title">Corner Radius</div>
-    <div class="s-row">
-      <label>R:</label>
-      <input type="number" id="cr" value="0" min="0" max="200" oninput="setCornerRadius(+this.value)">
-      <label>px</label>
+    <div id="cr-section" style="opacity:.4;pointer-events:none;display:flex;flex-direction:column;gap:6px">
+      <div class="s-title">Corner Radius <span class="tip" data-tip="Sets corner rounding (px) on selected square shapes. Select a square to enable.">?</span></div>
+      <div class="s-row">
+        <label>R:</label>
+        <input type="number" id="cr" value="0" min="0" max="200" oninput="setCornerRadius(+this.value)">
+        <label>px</label>
+      </div>
     </div>
     <hr class="s-sep">
     <div class="s-title">View</div>
@@ -102,8 +106,8 @@
     <button onclick="saveProject()">Save (.iconproj)</button>
     <button onclick="document.getElementById('file-in').click()">Load (.iconproj)</button>
     <button onclick="exportSVG()">Export SVG</button>
-    <button onclick="exportIOS()">Export iOS (zip)</button>
-    <button onclick="exportAndroid()">Export Android (zip)</button>
+    <div style="display:flex;align-items:center;gap:4px"><button style="flex:1" onclick="exportIOS()">Export iOS (zip)</button><span class="tip" data-tip="Exports AppIcon.appiconset for Xcode: all iPhone sizes (40–180px) and iPad sizes (20–167px) at @1x/@2x/@3x, plus the 1024px App Store marketing icon. Drop into Xcode's Assets.xcassets.">?</span></div>
+    <div style="display:flex;align-items:center;gap:4px"><button style="flex:1" onclick="exportAndroid()">Export Android (zip)</button><span class="tip" data-tip="Exports Android launcher icons into mipmap folders: mdpi (48px), hdpi (72px), xhdpi (96px), xxhdpi (144px), xxxhdpi (192px) — each with ic_launcher and ic_launcher_round — plus a 512px Play Store icon.">?</span></div>
     <hr class="s-sep">
     <div id="instructions">
 
@@ -124,7 +128,8 @@
         <div class="ins-row"><kbd>Scroll</kbd><span>Fine-rotate (desktop)</span></div>
         <div class="ins-row"><kbd>Shift+rotate</kbd><span>Snap to 45° (desktop)</span></div>
         <div class="ins-row"><kbd>Del</kbd><span>Delete selected</span></div>
-        <div class="ins-note">Select a path and drag its orange handles to curve segments.</div>
+        <div class="ins-row"><kbd>Drag ◆ handle</kbd><span>Curve path segment</span></div>
+        <div class="ins-note">Select a path → orange diamond handles appear at each segment midpoint. Drag perpendicular to the segment to bend it into a bezier curve.</div>
       </div>
 
       <div class="ins-section">
@@ -155,14 +160,14 @@
 
     </div>
     <hr class="s-sep">
-    <div id="info">Ready</div>
+    <div id="info"></div>
   </div>
 </div>
 
 <div id="overlay" onclick="toggleSidebar()"></div>
 
 <!-- Positioned off-screen so .click() reliably opens the native picker -->
-<input type="color" id="color-in" style="position:fixed;left:-200px;top:-200px;opacity:0;pointer-events:none" oninput="onColorPick(this.value)" onchange="onColorPick(this.value)">
+<input type="color" id="color-in" style="position:fixed;top:0;left:0;width:0;height:0;opacity:0;border:none;padding:0;" oninput="onColorPick(this.value)" onchange="onColorPick(this.value)">
 <input type="file"  id="file-in"  style="display:none" accept=".iconproj" onchange="onFileLoad(this)">
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>

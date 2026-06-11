@@ -235,6 +235,14 @@ function onDown(e) {
       saveState();
       const m=measureTxt(txt,S.textFontFamily,S.textFontSize);
       S.shapes.push(mkShape('text',sn.x,sn.y,sn.x+m.w,sn.y+m.h,{text:txt.trim()})); redraw();
+    } else if (S.tool==='eraser') {
+      saveState();
+      S.isDrawing=true;
+      const hit=hitTest(pos);
+      if (hit) { S.shapes.splice(S.shapes.indexOf(hit),1); S.selected=S.selected.filter(s=>s!==hit); selWidget(); redraw(); }
+    } else if (S.tool==='eyedropper') {
+      const hit=hitTest(pos);
+      if (hit) setColor(hit.stroke_color);
     } else {
       let st=findSnap(pos)||(S.gridSnapEnabled?snapGrid(pos):pos);
       S.startPos=st; S.curPos=st; S.isDrawing=true;
@@ -244,6 +252,13 @@ function onDown(e) {
 
 function onMove(e) {
   const pos=canvasPos(e); S.cursor=pos; S.curPos=pos;
+
+  if (S.tool==='eyedropper'&&S.mode==='draw') {
+    const prev=S.hover; S.hover=hitTest(pos);
+    if (S.hover) setColor(S.hover.stroke_color);
+    if (S.hover!==prev) redraw();
+    return;
+  }
 
   if (S.mode==='select'&&!S.moving.length&&!S.rotating&&!S.curveDrag&&!S.textResize) {
     const prev=S.hover; S.hover=hitTest(pos); if (S.hover!==prev) redraw();
@@ -269,6 +284,11 @@ function onMove(e) {
   } else if (S.tool==='path'&&S.mode==='draw') {
     const ep=findSnap(pos); S.snapEp=ep; S.curPos=ep?ep:(S.gridSnapEnabled?snapGrid(pos):pos); redraw();
   } else if (S.isDrawing) {
+    if (S.tool==='eraser') {
+      const hit=hitTest(pos);
+      if (hit) { S.shapes.splice(S.shapes.indexOf(hit),1); S.selected=S.selected.filter(s=>s!==hit); selWidget(); redraw(); }
+      return;
+    }
     let p=pos;
     if (S.snapEnabled&&e.shiftKey) p=snapAngle(pos);
     else if (S.gridSnapEnabled) p=snapGrid(pos);
@@ -288,8 +308,11 @@ function onUp(e) {
   if (S.curveDrag) { S.curveDrag=null; return; }
   if (S.moving.length) { S.moving=[]; S.moveOrigins=[]; return; }
   if (S.isDrawing) {
-    S.isDrawing=false; saveState();
-    S.shapes.push(mkShape(S.tool,S.startPos.x,S.startPos.y,S.curPos.x,S.curPos.y));
+    S.isDrawing=false;
+    if (S.tool!=='eraser') {
+      saveState();
+      S.shapes.push(mkShape(S.tool,S.startPos.x,S.startPos.y,S.curPos.x,S.curPos.y));
+    }
     S.snapEp=null; redraw();
   }
 }
@@ -341,6 +364,15 @@ document.addEventListener('keydown', e=>{
     if (e.key==='y'){e.preventDefault();redo();return;}
     if (e.key==='s'){e.preventDefault();saveProject();return;}
     if (e.key==='o'){e.preventDefault();document.getElementById('file-in').click();return;}
+    if (e.key.toLowerCase()==='r'&&S.dirty){
+      e.preventDefault();
+      if (confirm('Your data will be deleted if you refresh. Cancel and save your work if you do not want your project to be deleted.')){S.dirty=false;location.reload();}
+      return;
+    }
+  }
+  if (e.key==='F5'&&S.dirty){
+    e.preventDefault();
+    if (confirm('Your data will be deleted if you refresh. Cancel and save your work if you do not want your project to be deleted.')){S.dirty=false;location.reload();}
   }
   if (e.key==='Escape'){S.pathPoints=[];redraw();}
   if (e.key==='Delete'||e.key==='Backspace') {
@@ -348,7 +380,7 @@ document.addEventListener('keydown', e=>{
     const del=S.selected.filter(s=>S.shapes.includes(s));
     if (del.length){saveState();del.forEach(s=>S.shapes.splice(S.shapes.indexOf(s),1));S.selected=[];selWidget();redraw();}
   }
-  const map={q:'select',l:'line',c:'circle',s:'square',t:'triangle',p:'path',w:'text'};
+  const map={q:'select',l:'line',c:'circle',s:'square',t:'triangle',p:'path',w:'text',e:'eraser',i:'eyedropper'};
   if (!ctrl&&map[e.key.toLowerCase()]) {
     const v=map[e.key.toLowerCase()]; v==='select'?setMode('select'):setTool(v);
   }
@@ -365,9 +397,9 @@ function redraw() {
     drawShape(cx,s,{sel,hov});
     if (sel&&s.type==='path') drawCurveHandles(cx,s);
   }
-  if (S.isDrawing) drawShape(cx,mkShape(S.tool,S.startPos.x,S.startPos.y,S.curPos.x,S.curPos.y,{stroke_width:S.strokeWidth,stroke_color:S.strokeColor}),{preview:true});
+  if (S.isDrawing&&S.tool!=='eraser') drawShape(cx,mkShape(S.tool,S.startPos.x,S.startPos.y,S.curPos.x,S.curPos.y,{stroke_width:S.strokeWidth,stroke_color:S.strokeColor}),{preview:true});
   if (S.pathPoints.length&&S.mode==='draw') drawPathPreview();
-  if (S.gridSnapEnabled&&S.mode==='draw'&&S.tool!=='path'&&S.tool!=='text') {
+  if (S.gridSnapEnabled&&S.mode==='draw'&&S.tool!=='path'&&S.tool!=='text'&&S.tool!=='eraser'&&S.tool!=='eyedropper') {
     const sn=snapGrid(S.cursor);
     cx.save(); cx.strokeStyle='#0099ff'; cx.fillStyle='rgba(0,153,255,.62)'; cx.lineWidth=1;
     cx.beginPath(); cx.arc(sn.x,sn.y,4,0,Math.PI*2); cx.fill(); cx.stroke();
@@ -477,12 +509,14 @@ function drawCurveHandles(c,s) {
 // ── Tool controls ─────────────────────────────────────────────────────────────
 function setMode(mode) {
   S.mode=mode; S.isDrawing=false; S.pathPoints=[]; S.moving=[]; S.rotating=null; S.curveDrag=null;
-  cv.style.cursor=mode==='select'?'default':'crosshair'; updateToolBtns(); redraw();
+  const cur=mode==='select'?'default':(S.tool==='eraser'?'cell':'crosshair');
+  cv.style.cursor=cur; updateToolBtns(); redraw();
 }
 function setTool(tool) { S.tool=tool; setMode('draw'); }
 function updateToolBtns() {
-  ['select','line','circle','square','triangle','path','text'].forEach(t=>{
+  ['select','line','circle','square','triangle','path','text','eraser','eyedropper'].forEach(t=>{
     const el=document.getElementById('tb-'+t);
+    if (!el) return;
     el.classList.toggle('active',(S.mode==='select'&&t==='select')||(S.mode==='draw'&&t===S.tool));
   });
 }
@@ -552,9 +586,16 @@ function onSel(s) {
 }
 function selWidget(s) {
   const row=document.getElementById('sel-row'), btn=document.getElementById('sel-color');
+  const crSec=document.getElementById('cr-section');
   const active=s||S.selected.at(-1);
-  if (active&&S.selected.length) { row.style.opacity='1';row.style.pointerEvents='auto';btn.style.background=active.stroke_color; }
-  else { row.style.opacity='.4';row.style.pointerEvents='none'; document.getElementById('info').textContent='Ready'; }
+  if (active&&S.selected.length) {
+    row.style.opacity='1';row.style.pointerEvents='auto';btn.style.background=active.stroke_color;
+    crSec.style.opacity='1';crSec.style.pointerEvents='auto';
+  } else {
+    row.style.opacity='.4';row.style.pointerEvents='none';
+    crSec.style.opacity='.4';crSec.style.pointerEvents='none';
+    document.getElementById('info').textContent='';
+  }
 }
 
 // ── Save / Load ───────────────────────────────────────────────────────────────
