@@ -1,5 +1,5 @@
 // ── Constants ─────────────────────────────────────────────────────────────────
-const CLOSE_THR = 15, GRID = 20;
+const CLOSE_THR = 15, GRID = 16;
 const PALETTES = [
   {name:"Ink",       bg:"#f8f8f8",icon:"#1a1a1a",acc:"#e63946"},
   {name:"Blueprint", bg:"#dceefb",icon:"#1d3557",acc:"#457b9d"},
@@ -27,7 +27,7 @@ const S = {
   snapEnabled:true, gridSnapEnabled:true,
   textFontFamily:'Arial Rounded MT Bold', textFontSize:24,
   palette:PALETTES[0],
-  canvasW:512, canvasH:512,
+  canvasW:512, canvasH:512, zoom:1,
   // interaction
   moving:[], moveStart:{x:0,y:0}, moveStartSnap:{x:0,y:0}, moveOrigins:[],
   rotating:null, rotAngle:0,
@@ -40,7 +40,12 @@ const S = {
 const cv = document.getElementById('canvas');
 const cx = cv.getContext('2d');
 
-function initCanvas() { cv.width=S.canvasW; cv.height=S.canvasH; redraw(); }
+function initCanvas() {
+  cv.width=S.canvasW; cv.height=S.canvasH;
+  cv.style.width  = Math.round(S.canvasW * S.zoom) + 'px';
+  cv.style.height = Math.round(S.canvasH * S.zoom) + 'px';
+  redraw();
+}
 
 function canvasPos(e) {
   const r = cv.getBoundingClientRect();
@@ -294,6 +299,12 @@ function onDbl(e) {
 
 function onWheel(e) {
   e.preventDefault();
+  if (e.ctrlKey) {
+    S.zoom = Math.min(8, Math.max(0.1, S.zoom * (e.deltaY < 0 ? 1.1 : 1/1.1)));
+    cv.style.width  = Math.round(S.canvasW * S.zoom) + 'px';
+    cv.style.height = Math.round(S.canvasH * S.zoom) + 'px';
+    return;
+  }
   const delta=e.deltaY<0?1:-1;
   const targets=S.rotating?[S.rotating]:(S.mode==='select'?S.selected:[]);
   if (targets.length) {
