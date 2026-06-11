@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>DIMP</title>
   <link rel="icon" type="image/png" href="icon.png">
-  <link rel="stylesheet" href="style.css?v=22">
+  <link rel="stylesheet" href="style.css?v=23">
 </head>
 <body>
 
@@ -21,16 +21,20 @@
   </div>
 
   <div class="tb-group tb-active" id="tbg-tools">
-    <button id="tb-select"   onclick="setMode('select')">Select</button>
-    <button id="tb-line"     onclick="setTool('line')" class="active">Line</button>
-    <button id="tb-circle"   onclick="setTool('circle')">Circle</button>
-    <button id="tb-square"   onclick="setTool('square')">Square</button>
-    <button id="tb-triangle" onclick="setTool('triangle')">Triangle</button>
-    <button id="tb-path"     onclick="setTool('path')">Path</button>
-    <button id="tb-text"        onclick="setTool('text')">Text</button>
-    <button id="tb-eraser"      onclick="setTool('eraser')">Eraser</button>
-    <button id="tb-eyedropper"  onclick="setTool('eyedropper')">Eyedrop</button>
-    <button id="tb-fill"        onclick="setTool('fill')">Fill</button>
+    <div class="tb-tools-row">
+      <button id="tb-select"   onclick="setMode('select')"      data-tip="Select and move shapes. Shift+click for multi-select. Right-drag to rotate.">Select</button>
+      <button id="tb-line"     onclick="setTool('line')" class="active" data-tip="Draw a straight line. Drag from start to end.">Line</button>
+      <button id="tb-circle"   onclick="setTool('circle')"      data-tip="Draw a circle or ellipse. Drag to set bounds.">Circle</button>
+      <button id="tb-square"   onclick="setTool('square')"      data-tip="Draw a rectangle. Drag to size. Corner radius rounds corners (see Selected Shape).">Square</button>
+      <button id="tb-triangle" onclick="setTool('triangle')"    data-tip="Draw a triangle. Drag to set bounds.">Triangle</button>
+      <button id="tb-path"     onclick="setTool('path')"        data-tip="Freeform path. Click to place points, click the first point to close, double-click to finish open.">Path</button>
+    </div>
+    <div class="tb-tools-row">
+      <button id="tb-text"       onclick="setTool('text')"       data-tip="Place a text label. Click on the canvas to position it.">Text</button>
+      <button id="tb-eraser"     onclick="setTool('eraser')"     data-tip="Erase shapes. Click or drag to delete. (e)">Eraser</button>
+      <button id="tb-eyedropper" onclick="setTool('eyedropper')" data-tip="Sample a shape's color. Hover to preview, click to apply as stroke color. (i)">Eyedrop</button>
+      <button id="tb-fill"       onclick="setTool('fill')"       data-tip="Flood-fill an enclosed region with the current stroke color. Click inside any closed area. (f)">Fill</button>
+    </div>
     <div class="tb-label">Tools</div>
   </div>
 
@@ -222,11 +226,11 @@
 <input type="file" id="file-in" style="display:none" accept=".iconproj" onchange="onFileLoad(this)">
 
 <footer id="footer">
-  <span id="version-tag" title="Click for full version history">v0.0.22</span>
+  <span id="version-tag" title="Click for full version history">v0.0.23</span>
   <button onclick="openAbout()">About</button>
 </footer>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<script src="app.js?v=22"></script>
+<script src="app.js?v=23"></script>
 </body>
 </html>

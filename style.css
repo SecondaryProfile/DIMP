@@ -37,6 +37,20 @@ body {
 
 .tb-sep { display: none; }
 
+/* Tools group — two rows of 6 */
+#tbg-tools {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  padding-bottom: 14px; /* room for .tb-label */
+}
+.tb-tools-row {
+  display: flex;
+  flex-direction: row;
+  gap: 2px;
+  flex-wrap: nowrap;
+}
+
 .tb-label {
   display: none;  /* shown only at ≥860px via media query below */
   font-size: 9px;

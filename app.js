@@ -11,6 +11,17 @@ const PALETTES = [
   {name:"Sage",      bg:"#f1f8e9",icon:"#2e4a1e",acc:"#7cb342"},
   {name:"Midnight",  bg:"#0d1117",icon:"#e6edf3",acc:"#58a6ff"},
   {name:"Sand",      bg:"#fdf6e3",icon:"#4a3728",acc:"#d4a853"},
+  {name:"Neon Dark", bg:"#0a0a0f",icon:"#e0e0e0",acc:"#00ff88"},
+  {name:"Sunset",    bg:"#fff0e6",icon:"#7c2d12",acc:"#f97316"},
+  {name:"Ocean",     bg:"#e0f2fe",icon:"#0c4a6e",acc:"#0891b2"},
+  {name:"Mono",      bg:"#ffffff",icon:"#1a1a1a",acc:"#6b7280"},
+  {name:"Candy",     bg:"#fdf0f8",icon:"#7e1d6f",acc:"#f472b6"},
+  {name:"Coffee",    bg:"#f5f0eb",icon:"#3b1c08",acc:"#92400e"},
+  {name:"Ice",       bg:"#f0f9ff",icon:"#1e3a5f",acc:"#38bdf8"},
+  {name:"Crimson",   bg:"#1a0000",icon:"#f5c6c6",acc:"#dc2626"},
+  {name:"Olive",     bg:"#fefce8",icon:"#365314",acc:"#84cc16"},
+  {name:"Dusk",      bg:"#1e1b2e",icon:"#e2d9f3",acc:"#a78bfa"},
+  {name:"Copper",    bg:"#faf5f0",icon:"#431407",acc:"#c2410c"},
 ];
 const FONTS = ["Arial","Arial Rounded MT Bold","Georgia","Times New Roman",
   "Courier New","Verdana","Helvetica Neue","Trebuchet MS","Impact","Comic Sans MS"];
@@ -113,6 +124,7 @@ function nearQBez(p,x0,y0,cpx,cpy,x1,y1,tol) {
   return false;
 }
 function inShape(p,s) {
+  if (s.type==='fill_region') return false;
   if (s.type==='path') {
     const tol=s.stroke_width+5,pts=s.points,n=pts.length;
     const segs=s.closed?n:n-1;
@@ -263,8 +275,7 @@ function onDown(e) {
       const hit=hitTest(pos);
       if (hit) setColor(hit.stroke_color);
     } else if (S.tool==='fill') {
-      const hit=hitTest(pos);
-      if (hit) { saveState(); hit.stroke_color=S.strokeColor; selWidget(hit); redraw(); }
+      doFloodFill(pos);
     } else {
       let st=findSnap(pos)||(S.gridSnapEnabled?snapGrid(pos):pos);
       S.startPos=st; S.curPos=st; S.isDrawing=true;
@@ -427,7 +438,9 @@ function redraw() {
   if (S.showBackground){cx.fillStyle=S.bgColor;cx.fillRect(0,0,S.canvasW,S.canvasH);}
   else drawChecker();
   if (S.gridEnabled) drawGrid();
+  for (const s of S.shapes) if (s.type==='fill_region') drawShape(cx,s);
   for (const s of S.shapes) {
+    if (s.type==='fill_region') continue;
     const sel=S.selected.includes(s);
     const hov=s===S.hover&&!sel&&S.tool!=='eraser'&&S.tool!=='fill';
     const eraseHov=s===S.hover&&!sel&&S.tool==='eraser';
@@ -477,6 +490,12 @@ function drawShape(c,s,{preview=false,sel=false,hov=false,eraseHov=false,fillHov
   if (sel) col='#ff6b6b';
   if (preview) col=S.strokeColor;
   c.strokeStyle=col; c.lineWidth=lw;
+  if (s.type==='fill_region') {
+    if (!s._img||!s._img.src) { s._img=new Image(); s._img.onload=()=>redraw(); s._img.src=s.dataURL; }
+    if (s._img.complete&&s._img.naturalWidth) c.drawImage(s._img,0,0);
+    else if (!s._img.complete) {} // onload will redraw
+    c.restore(); return;
+  }
   if (s.type==='path'){drawPath(c,s);c.restore();return;}
   const scx=(s.start_x+s.end_x)/2, scy=(s.start_y+s.end_y)/2;
   c.translate(scx,scy); c.rotate(s.rotation*Math.PI/180); c.translate(-scx,-scy);
@@ -550,6 +569,63 @@ function drawCurveHandles(c,s) {
 }
 
 // ── Tool controls ─────────────────────────────────────────────────────────────
+// ── Flood fill ────────────────────────────────────────────────────────────────
+function doFloodFill(pos) {
+  const px=Math.round(pos.x-0.5), py=Math.round(pos.y-0.5);
+  const W=S.canvasW, H=S.canvasH;
+  if (px<0||py<0||px>=W||py>=H) return;
+
+  // Render current scene to offscreen (no grid, just bg + shapes)
+  const off=document.createElement('canvas'); off.width=W; off.height=H;
+  const octx=off.getContext('2d');
+  if (S.showBackground){octx.fillStyle=S.bgColor;octx.fillRect(0,0,W,H);}
+  for (const s of S.shapes) if (s.type==='fill_region') drawShape(octx,s);
+  for (const s of S.shapes) if (s.type!=='fill_region') drawShape(octx,s);
+
+  const src=octx.getImageData(0,0,W,H).data;
+  const i0=(py*W+px)*4;
+  const [tR,tG,tB,tA]=[src[i0],src[i0+1],src[i0+2],src[i0+3]];
+
+  // Parse fill color
+  const fR=parseInt(S.strokeColor.slice(1,3),16);
+  const fG=parseInt(S.strokeColor.slice(3,5),16);
+  const fB=parseInt(S.strokeColor.slice(5,7),16);
+
+  const tol=24;
+  if (Math.abs(fR-tR)<=tol&&Math.abs(fG-tG)<=tol&&Math.abs(fB-tB)<=tol) return;
+
+  function match(i){return Math.abs(src[i]-tR)<=tol&&Math.abs(src[i+1]-tG)<=tol&&Math.abs(src[i+2]-tB)<=tol&&Math.abs(src[i+3]-tA)<=tol;}
+
+  const out=new Uint8ClampedArray(W*H*4);
+  const vis=new Uint8Array(W*H);
+  const stack=[py*W+px]; vis[py*W+px]=1;
+
+  while (stack.length) {
+    const p=stack.pop();
+    const fx=p%W, fy=(p/W)|0, fi=p*4;
+    out[fi]=fR; out[fi+1]=fG; out[fi+2]=fB; out[fi+3]=255;
+    if (fy>0   &&!vis[p-W]&&match((p-W)*4)){vis[p-W]=1;stack.push(p-W);}
+    if (fy<H-1 &&!vis[p+W]&&match((p+W)*4)){vis[p+W]=1;stack.push(p+W);}
+    if (fx>0   &&!vis[p-1]&&match((p-1)*4)){vis[p-1]=1;stack.push(p-1);}
+    if (fx<W-1 &&!vis[p+1]&&match((p+1)*4)){vis[p+1]=1;stack.push(p+1);}
+  }
+
+  const fc=document.createElement('canvas'); fc.width=W; fc.height=H;
+  fc.getContext('2d').putImageData(new ImageData(out,W,H),0,0);
+  const dataURL=fc.toDataURL('image/png');
+  const img=new Image(); img.src=dataURL;
+
+  saveState();
+  S.shapes.push({
+    type:'fill_region', stroke_color:S.strokeColor, dataURL, _img:img,
+    w:W, h:H, id:Math.random().toString(36).slice(2),
+    rotation:0, start_x:0, start_y:0, end_x:W, end_y:H,
+    stroke_width:0, corner_radius:0, points:[], curves:[], closed:false,
+    text:'', font_family:'', font_size:0
+  });
+  redraw();
+}
+
 function setMode(mode) {
   S.mode=mode; S.isDrawing=false; S.pathPoints=[]; S.moving=[]; S.rotating=null; S.curveDrag=null;
   const cur=mode==='select'?'default':(S.tool==='eraser'?'cell':'crosshair');
@@ -695,7 +771,7 @@ function selWidget(s) {
 
 // ── Save / Load ───────────────────────────────────────────────────────────────
 function saveProject() {
-  const data={ shapes:S.shapes.map(s=>({...s})), palette:S.palette.name, show_background:S.showBackground, canvas_w:S.canvasW, canvas_h:S.canvasH };
+  const data={ shapes:S.shapes.map(s=>{ if(s.type==='fill_region'){const{_img,...r}=s;return r;} return {...s}; }), palette:S.palette.name, show_background:S.showBackground, canvas_w:S.canvasW, canvas_h:S.canvasH };
   const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));
   a.download='project.iconproj'; a.click();
   S.dirty = false;
@@ -705,7 +781,7 @@ function onFileLoad(inp) {
   const r=new FileReader();
   r.onload=e=>{ try {
     const d=JSON.parse(e.target.result);
-    S.shapes=(d.shapes||[]).map(s=>mkShape(s.type,s.start_x,s.start_y,s.end_x,s.end_y,s));
+    S.shapes=(d.shapes||[]).map(s=>s.type==='fill_region'?{...s,_img:null}:mkShape(s.type,s.start_x,s.start_y,s.end_x,s.end_y,s));
     const pal=PALETTES.find(p=>p.name===d.palette)||PALETTES[0];
     palSel.value=PALETTES.indexOf(pal); S.palette=pal; S.bgColor=pal.bg; setColor(pal.icon); refreshSwatches();
     S.showBackground=d.show_background!==false; document.getElementById('chk-bg').checked=S.showBackground;
@@ -726,6 +802,7 @@ function exportSVG() {
   a.download='icon.svg'; a.click();
 }
 function toSVG(s) {
+  if (s.type==='fill_region') return `<image href="${s.dataURL}" x="0" y="0" width="${s.w}" height="${s.h}"/>`;
   const sw=Math.max(1,Math.round(s.stroke_width)),c=s.stroke_color;
   if (s.type==='path') {
     const pts=s.points,n=pts.length; if(n<2) return '';
@@ -756,7 +833,9 @@ function renderOffscreen(sz) {
   const oc=document.createElement('canvas'); oc.width=S.canvasW; oc.height=S.canvasH;
   const oc2=oc.getContext('2d'); oc2.lineCap='round'; oc2.lineJoin='round';
   if (S.showBackground){oc2.fillStyle=S.bgColor;oc2.fillRect(0,0,S.canvasW,S.canvasH);}
+  for (const s of S.shapes) if (s.type==='fill_region') drawShape(oc2,s);
   for (const s of S.shapes) {
+    if (s.type==='fill_region') continue;
     oc2.save(); oc2.lineCap='round'; oc2.lineJoin='round'; oc2.strokeStyle=s.stroke_color; oc2.lineWidth=Math.max(1,s.stroke_width);
     if (s.type==='path'){drawPath(oc2,s);oc2.restore();continue;}
     const scx=(s.start_x+s.end_x)/2,scy=(s.start_y+s.end_y)/2;
@@ -940,6 +1019,7 @@ document.addEventListener('click', e => {
 
 // ── Version history ───────────────────────────────────────────────────────────
 const VERSIONS = [
+  { v:'0.0.23', notes:'Raster flood-fill (Fill tool fills enclosed regions); 12 new color themes; tools split into 2 rows of 6; 2-second hover tooltips on tool buttons' },
   { v:'0.0.22', notes:'Fill tool (bucket fill on shapes, f key); active color box replaces … button; Corner Radius moved to Selected Shape section' },
   { v:'0.0.21', notes:'Fix: color picker panel hidden by default; About modal inline positioning; export menu inline hidden; document-click handler uses explicit display check; cache-bust CSS/JS' },
   { v:'0.0.20', notes:'Path curve hit-test (bezier-aware); custom color picker panel; About page; Version history footer; Favicon' },
@@ -963,7 +1043,7 @@ const VERSIONS = [
   { v:'0.0.2',  notes:'Added release support' },
   { v:'0.0.1',  notes:'Initial commit — Python/PyQt6 desktop application' },
 ];
-const CURRENT_VERSION = '0.0.22';
+const CURRENT_VERSION = '0.0.23';
 
 function openAbout() { document.getElementById('about-overlay').style.display='flex'; }
 function closeAbout() { document.getElementById('about-overlay').style.display='none'; }
@@ -994,3 +1074,15 @@ if (_verTag) {
   _verTag.addEventListener('mouseleave', _hideTip);
   _verTag.addEventListener('click', openVersionHistory);
 }
+
+// Tool button hover tooltips — show after 2 s of hovering
+let _toolTipTimer = null;
+document.querySelectorAll('#tbg-tools button[data-tip]').forEach(btn => {
+  btn.addEventListener('mouseenter', () => {
+    _toolTipTimer = setTimeout(() => _showTip(btn), 2000);
+  });
+  btn.addEventListener('mouseleave', () => {
+    clearTimeout(_toolTipTimer);
+    _hideTip();
+  });
+});
