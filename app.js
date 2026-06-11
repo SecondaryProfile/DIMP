@@ -149,6 +149,24 @@ cv.addEventListener('contextmenu', e=>{ e.preventDefault(); });
 cv.addEventListener('wheel', onWheel, {passive:false});
 cv.addEventListener('mouseleave', ()=>{ S.hover=null; redraw(); });
 
+// ── Touch → draw (mobile) ─────────────────────────────────────────────────────
+function touchEvt(e) {
+  const t = e.touches.length ? e.touches[0] : e.changedTouches[0];
+  return { clientX:t.clientX, clientY:t.clientY, button:0, shiftKey:false, preventDefault:()=>{} };
+}
+let _lastTap = 0;
+cv.addEventListener('touchstart', e => {
+  e.preventDefault();
+  const fake = touchEvt(e);
+  const now = Date.now();
+  if (now - _lastTap < 300) onDbl(fake);
+  _lastTap = now;
+  onDown(fake);
+}, { passive:false });
+cv.addEventListener('touchmove',   e => { e.preventDefault(); onMove(touchEvt(e)); }, { passive:false });
+cv.addEventListener('touchend',    e => { e.preventDefault(); onUp(touchEvt(e));   }, { passive:false });
+cv.addEventListener('touchcancel', e => { e.preventDefault(); onUp(touchEvt(e));   }, { passive:false });
+
 function onDown(e) {
   e.preventDefault();
   const pos = canvasPos(e);
@@ -353,8 +371,10 @@ function drawGrid() {
   const bg=S.bgColor, r=parseInt(bg.slice(1,3),16), g=parseInt(bg.slice(3,5),16), b=parseInt(bg.slice(5,7),16);
   cx.strokeStyle=(0.299*r+0.587*g+0.114*b>128)?'rgba(0,0,0,.12)':'rgba(255,255,255,.12)';
   cx.lineWidth=0.5; cx.beginPath();
-  for (let x=0;x<=S.canvasW;x+=20){cx.moveTo(x,0);cx.lineTo(x,S.canvasH);}
-  for (let y=0;y<=S.canvasH;y+=20){cx.moveTo(0,y);cx.lineTo(S.canvasW,y);}
+  for (let x=0;x<=S.canvasW;x+=GRID){cx.moveTo(x,0);cx.lineTo(x,S.canvasH);}
+  if (S.canvasW%GRID!==0){cx.moveTo(S.canvasW,0);cx.lineTo(S.canvasW,S.canvasH);}
+  for (let y=0;y<=S.canvasH;y+=GRID){cx.moveTo(0,y);cx.lineTo(S.canvasW,y);}
+  if (S.canvasH%GRID!==0){cx.moveTo(0,S.canvasH);cx.lineTo(S.canvasW,S.canvasH);}
   cx.stroke();
 }
 
