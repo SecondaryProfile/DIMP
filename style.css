@@ -7,9 +7,6 @@ html, body {
   font-size: 13px;
   background: #2b2b2b;
   color: #222;
-}
-
-body {
   display: flex;
   flex-direction: column;
 }
@@ -19,43 +16,42 @@ body {
   background: #e8e8e8;
   border-bottom: 1px solid #bbb;
   display: flex;
+  flex-direction: row;
   flex-wrap: wrap;
   align-items: stretch;
   flex-shrink: 0;
 }
 
+/* Groups always lay out horizontally — explicit direction prevents vertical stacking */
 .tb-group {
   display: flex;
+  flex-direction: row;
   align-items: center;
   gap: 2px;
-  padding: 4px 8px;
+  padding: 5px 7px;
   border-right: 1px solid #ccc;
   flex-shrink: 0;
   position: relative;
 }
 
-/* Remove old separator elements */
-.tb-sep { display: none; }
-
-/* Labels only show on wide screens */
-.tb-label {
-  font-size: 9px;
-  color: #666;
-  position: absolute;
-  bottom: 2px;
-  left: 0;
-  right: 0;
-  text-align: center;
-  pointer-events: none;
-}
+/* Labels only on wider screens, absolutely positioned so they don't affect layout flow */
+.tb-label { display: none; }
 
 @media (min-width: 860px) {
   .tb-group { padding-bottom: 16px; }
+  .tb-label {
+    display: block;
+    position: absolute;
+    bottom: 2px; left: 0; right: 0;
+    font-size: 9px; color: #666;
+    text-align: center;
+    pointer-events: none;
+  }
 }
 
 /* ── Buttons ──────────────────────────────────────────────────────────────── */
 button {
-  padding: 3px 7px;
+  padding: 4px 8px;
   font-size: 12px;
   cursor: pointer;
   border: 1px solid #bbb;
@@ -63,8 +59,10 @@ button {
   background: #f5f5f5;
   white-space: nowrap;
   flex-shrink: 0;
+  line-height: 1.2;
+  touch-action: manipulation;
 }
-button:hover  { background: #e0e0e0; }
+button:hover   { background: #e0e0e0; }
 button.active  { background: #4a90d9; color: #fff; border-color: #2d6aad; }
 button.toggled { background: #5a5a5a; color: #fff; border-color: #333; }
 button.danger  { background: #c0392b; color: #fff; border-color: #922b21; }
@@ -73,13 +71,13 @@ button.danger:hover { background: #e74c3c; }
 /* ── Inputs / Selects ─────────────────────────────────────────────────────── */
 input[type=number] {
   width: 52px;
-  padding: 2px 4px;
+  padding: 3px 4px;
   font-size: 12px;
   border: 1px solid #bbb;
   border-radius: 3px;
 }
 select {
-  padding: 2px 4px;
+  padding: 3px 4px;
   font-size: 12px;
   border: 1px solid #bbb;
   border-radius: 3px;
@@ -89,25 +87,17 @@ select {
 
 /* ── Color swatches ───────────────────────────────────────────────────────── */
 .swatch {
-  width: 26px;
-  height: 22px;
-  border: 1px solid #888;
-  border-radius: 2px;
-  cursor: pointer;
-  display: inline-block;
-  flex-shrink: 0;
+  width: 26px; height: 22px;
+  border: 1px solid #888; border-radius: 2px;
+  cursor: pointer; flex-shrink: 0;
+  touch-action: manipulation;
 }
 .swatch:hover { border-color: #555; }
 .sw-col { display: flex; flex-direction: column; align-items: center; gap: 1px; }
 .sw-lbl { font-size: 9px; color: #888; }
 
 /* ── Main layout ──────────────────────────────────────────────────────────── */
-#main {
-  display: flex;
-  flex: 1;
-  overflow: hidden;
-  min-height: 0;
-}
+#main { display: flex; flex: 1; overflow: hidden; min-height: 0; }
 
 /* ── Canvas area ──────────────────────────────────────────────────────────── */
 #canvas-scroll {
@@ -117,19 +107,13 @@ select {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 0;
-  min-height: 0;
+  min-width: 0; min-height: 0;
 }
+#canvas { display: block; cursor: crosshair; touch-action: none; }
 
-#canvas {
-  display: block;
-  cursor: crosshair;
-  max-width: 100%;
-}
-
-/* ── Sidebar ──────────────────────────────────────────────────────────────── */
+/* ── Sidebar (desktop) ────────────────────────────────────────────────────── */
 #sidebar {
-  width: clamp(150px, 20vw, 200px);
+  width: clamp(155px, 18vw, 195px);
   background: #f0f0f0;
   border-left: 1px solid #ccc;
   overflow-y: auto;
@@ -144,68 +128,106 @@ select {
 .s-sep   { border: none; border-top: 1px solid #ccc; margin: 2px 0; }
 .s-row   { display: flex; align-items: center; gap: 5px; }
 
-#sidebar label       { font-size: 12px; }
+#sidebar label              { font-size: 12px; }
 #sidebar input[type=number] { width: 62px; }
-
 #info         { font-size: 11px; color: #666; white-space: pre-wrap; line-height: 1.4; }
 #instructions { font-size: 10px; color: #888; line-height: 1.5; }
 
-/* ── Sidebar toggle (hidden on desktop) ───────────────────────────────────── */
+/* Sidebar toggle & overlay hidden on desktop */
 #sidebar-toggle { display: none; }
+#overlay        { display: none; }
 
-/* ── Overlay (hidden on desktop) ─────────────────────────────────────────── */
-#overlay {
-  display: none;
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.45);
-  z-index: 199;
-}
-
-/* ── Mobile (≤ 700px) ─────────────────────────────────────────────────────── */
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* ── MOBILE (≤ 700px) ────────────────────────────────────────────────────── */
+/* ─────────────────────────────────────────────────────────────────────────── */
 @media (max-width: 700px) {
-  /* Show sidebar toggle in toolbar */
-  #sidebar-toggle {
-    display: flex;
-    margin-left: auto;
-    font-size: 18px;
-    padding: 3px 10px;
-    border-right: none;
+
+  /* Single horizontally scrollable toolbar row — no wrapping, no vertical stacking */
+  #toolbar {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    align-items: center;
+  }
+  #toolbar::-webkit-scrollbar { display: none; }
+
+  .tb-group {
+    padding: 4px 5px;
+    flex-shrink: 0;
   }
 
-  /* Sidebar becomes a slide-in overlay panel */
-  #sidebar {
-    position: fixed;
-    top: 0;
-    right: -100%;
-    width: min(280px, 85vw);
-    height: 100dvh;
-    z-index: 200;
-    border-left: 1px solid #ccc;
-    box-shadow: -4px 0 20px rgba(0, 0, 0, 0.25);
-    transition: right 0.25s ease;
-  }
-  #sidebar.open { right: 0; }
+  /* Buttons and inputs a touch friendlier */
+  button { padding: 6px 8px; min-height: 32px; }
+  input[type=number] { width: 44px; min-height: 28px; }
 
-  #overlay.active { display: block; }
-
-  /* Compact toolbar buttons on mobile */
-  button { padding: 4px 6px; font-size: 11px; }
-  input[type=number] { width: 44px; font-size: 11px; }
-  select { font-size: 11px; }
-
-  /* Hide font selector on mobile to save space */
+  /* Font family selector is too wide for mobile — hide it, keep font size */
   #font-sel { display: none; }
 
-  /* Hide font size label */
-  #font-pt-label { display: none; }
+  /* Settings button visible on mobile to open the bottom sheet */
+  #sidebar-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 12px;
+    min-height: 32px;
+    font-size: 18px;
+    border: none;
+    border-left: 1px solid #ccc;
+    border-radius: 0;
+    background: #e8e8e8;
+    flex-shrink: 0;
+    margin-left: auto;
+    position: sticky;
+    right: 0;
+  }
 
-  /* Palette dropdown narrower */
-  #pal-sel { max-width: 90px; }
-}
+  /* ── Sidebar → bottom sheet slides up from bottom ───────────────────────── */
+  #sidebar {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    width: 100%;
+    height: 55dvh;
+    max-height: 70dvh;
+    border-left: none;
+    border-top: 1px solid #ccc;
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -6px 32px rgba(0,0,0,0.25);
+    z-index: 300;
+    /* transform moves by 100% of its own height — reliably hides it below viewport */
+    transform: translateY(100%);
+    transition: transform 0.28s ease;
+    padding-top: 20px;
+  }
 
-/* ── Small toolbar wrap: don't leave orphan rows with empty space ─────────── */
-/* When a group wraps, give it room to fill */
-@media (max-width: 900px) {
-  .tb-group:last-of-type { border-right: none; flex-grow: 1; }
+  /* Drag handle pill */
+  #sidebar::before {
+    content: '';
+    position: absolute;
+    top: 7px; left: 50%;
+    transform: translateX(-50%);
+    width: 40px; height: 4px;
+    background: #bbb;
+    border-radius: 2px;
+  }
+
+  #sidebar.open { transform: translateY(0); }
+
+  /* Dim overlay behind the sheet */
+  #overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0);
+    z-index: 299;
+    pointer-events: none;
+    transition: background 0.28s ease;
+  }
+  #overlay.active {
+    background: rgba(0,0,0,0.45);
+    pointer-events: auto;
+  }
+
+  /* Sidebar content layout — two column grid for compactness */
+  #sidebar { flex-direction: column; }
 }
