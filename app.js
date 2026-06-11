@@ -262,6 +262,9 @@ function onDown(e) {
     } else if (S.tool==='eyedropper') {
       const hit=hitTest(pos);
       if (hit) setColor(hit.stroke_color);
+    } else if (S.tool==='fill') {
+      const hit=hitTest(pos);
+      if (hit) { saveState(); hit.stroke_color=S.strokeColor; selWidget(hit); redraw(); }
     } else {
       let st=findSnap(pos)||(S.gridSnapEnabled?snapGrid(pos):pos);
       S.startPos=st; S.curPos=st; S.isDrawing=true;
@@ -287,6 +290,12 @@ function onMove(e) {
   if (S.tool==='eyedropper'&&S.mode==='draw') {
     const prev=S.hover; S.hover=hitTest(pos);
     if (S.hover) setColor(S.hover.stroke_color);
+    if (S.hover!==prev) redraw();
+    return;
+  }
+
+  if (S.tool==='fill'&&S.mode==='draw') {
+    const prev=S.hover; S.hover=hitTest(pos)||null;
     if (S.hover!==prev) redraw();
     return;
   }
@@ -406,7 +415,7 @@ document.addEventListener('keydown', e=>{
     const del=S.selected.filter(s=>S.shapes.includes(s));
     if (del.length){saveState();del.forEach(s=>S.shapes.splice(S.shapes.indexOf(s),1));S.selected=[];selWidget();redraw();}
   }
-  const map={q:'select',l:'line',c:'circle',s:'square',t:'triangle',p:'path',w:'text',e:'eraser',i:'eyedropper'};
+  const map={q:'select',l:'line',c:'circle',s:'square',t:'triangle',p:'path',w:'text',e:'eraser',i:'eyedropper',f:'fill'};
   if (!ctrl&&map[e.key.toLowerCase()]) {
     const v=map[e.key.toLowerCase()]; v==='select'?setMode('select'):setTool(v);
   }
@@ -420,14 +429,15 @@ function redraw() {
   if (S.gridEnabled) drawGrid();
   for (const s of S.shapes) {
     const sel=S.selected.includes(s);
-    const hov=s===S.hover&&!sel&&S.tool!=='eraser';
+    const hov=s===S.hover&&!sel&&S.tool!=='eraser'&&S.tool!=='fill';
     const eraseHov=s===S.hover&&!sel&&S.tool==='eraser';
-    drawShape(cx,s,{sel,hov,eraseHov});
+    const fillHov=s===S.hover&&!sel&&S.tool==='fill';
+    drawShape(cx,s,{sel,hov,eraseHov,fillHov});
     if (sel&&s.type==='path') drawCurveHandles(cx,s);
   }
-  if (S.isDrawing&&S.tool!=='eraser') drawShape(cx,mkShape(S.tool,S.startPos.x,S.startPos.y,S.curPos.x,S.curPos.y,{stroke_width:S.strokeWidth,stroke_color:S.strokeColor}),{preview:true});
+  if (S.isDrawing&&S.tool!=='eraser'&&S.tool!=='fill') drawShape(cx,mkShape(S.tool,S.startPos.x,S.startPos.y,S.curPos.x,S.curPos.y,{stroke_width:S.strokeWidth,stroke_color:S.strokeColor}),{preview:true});
   if (S.pathPoints.length&&S.mode==='draw') drawPathPreview();
-  if (S.gridSnapEnabled&&S.mode==='draw'&&S.tool!=='path'&&S.tool!=='text'&&S.tool!=='eraser'&&S.tool!=='eyedropper') {
+  if (S.gridSnapEnabled&&S.mode==='draw'&&S.tool!=='path'&&S.tool!=='text'&&S.tool!=='eraser'&&S.tool!=='eyedropper'&&S.tool!=='fill') {
     const sn=snapGrid(S.cursor);
     cx.save(); cx.strokeStyle='#0099ff'; cx.fillStyle='rgba(0,153,255,.62)'; cx.lineWidth=1;
     cx.beginPath(); cx.arc(sn.x,sn.y,4,0,Math.PI*2); cx.fill(); cx.stroke();
@@ -458,11 +468,12 @@ function drawGrid() {
   cx.stroke();
 }
 
-function drawShape(c,s,{preview=false,sel=false,hov=false,eraseHov=false}={}) {
+function drawShape(c,s,{preview=false,sel=false,hov=false,eraseHov=false,fillHov=false}={}) {
   c.save(); c.lineCap='round'; c.lineJoin='round';
   let col=s.stroke_color, lw=Math.max(1,s.stroke_width);
   if (hov){col='#5bb4ff';lw+=1;}
   if (eraseHov){col='#ff8585';lw+=1;}
+  if (fillHov){col='#5dd97a';lw+=1;}
   if (sel) col='#ff6b6b';
   if (preview) col=S.strokeColor;
   c.strokeStyle=col; c.lineWidth=lw;
@@ -546,7 +557,7 @@ function setMode(mode) {
 }
 function setTool(tool) { S.tool=tool; setMode('draw'); }
 function updateToolBtns() {
-  ['select','line','circle','square','triangle','path','text','eraser','eyedropper'].forEach(t=>{
+  ['select','line','circle','square','triangle','path','text','eraser','eyedropper','fill'].forEach(t=>{
     const el=document.getElementById('tb-'+t);
     if (!el) return;
     el.classList.toggle('active',(S.mode==='select'&&t==='select')||(S.mode==='draw'&&t===S.tool));
@@ -670,14 +681,14 @@ function onSel(s) {
 }
 function selWidget(s) {
   const row=document.getElementById('sel-row'), btn=document.getElementById('sel-color');
-  const crSec=document.getElementById('cr-section');
+  const crRow=document.getElementById('sel-cr-row');
   const active=s||S.selected.at(-1);
   if (active&&S.selected.length) {
     row.style.opacity='1';row.style.pointerEvents='auto';btn.style.background=active.stroke_color;
-    crSec.style.opacity='1';crSec.style.pointerEvents='auto';
+    if (crRow){crRow.style.opacity='1';crRow.style.pointerEvents='auto';}
   } else {
     row.style.opacity='.4';row.style.pointerEvents='none';
-    crSec.style.opacity='.4';crSec.style.pointerEvents='none';
+    if (crRow){crRow.style.opacity='.4';crRow.style.pointerEvents='none';}
     document.getElementById('info').textContent='';
   }
 }
@@ -929,6 +940,7 @@ document.addEventListener('click', e => {
 
 // ── Version history ───────────────────────────────────────────────────────────
 const VERSIONS = [
+  { v:'0.0.22', notes:'Fill tool (bucket fill on shapes, f key); active color box replaces … button; Corner Radius moved to Selected Shape section' },
   { v:'0.0.21', notes:'Fix: color picker panel hidden by default; About modal inline positioning; export menu inline hidden; document-click handler uses explicit display check; cache-bust CSS/JS' },
   { v:'0.0.20', notes:'Path curve hit-test (bezier-aware); custom color picker panel; About page; Version history footer; Favicon' },
   { v:'0.0.19', notes:'Eyedrop tool rename; eraser hover highlight (red); Export Image dropdown with PNG/JPG/WebP support' },
@@ -951,7 +963,7 @@ const VERSIONS = [
   { v:'0.0.2',  notes:'Added release support' },
   { v:'0.0.1',  notes:'Initial commit — Python/PyQt6 desktop application' },
 ];
-const CURRENT_VERSION = '0.0.21';
+const CURRENT_VERSION = '0.0.22';
 
 function openAbout() { document.getElementById('about-overlay').style.display='flex'; }
 function closeAbout() { document.getElementById('about-overlay').style.display='none'; }
