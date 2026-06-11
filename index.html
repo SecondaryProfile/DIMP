@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>DIMP</title>
   <link rel="icon" type="image/png" href="icon.png">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=21">
 </head>
 <body>
 
@@ -168,7 +168,7 @@
 <div id="overlay" onclick="toggleSidebar()"></div>
 
 <!-- ── Color picker panel ──────────────────────────────────────────────── -->
-<div id="color-picker-panel">
+<div id="color-picker-panel" style="display:none">
   <div class="cp-header">
     <span>Pick Color</span>
     <button class="cp-close" onclick="closeColorPicker()">×</button>
@@ -182,7 +182,7 @@
 </div>
 
 <!-- ── About modal ─────────────────────────────────────────────────────── -->
-<div id="about-overlay" class="modal-overlay" onclick="closeAbout()" style="display:none">
+<div id="about-overlay" class="modal-overlay" onclick="closeAbout()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:800;align-items:center;justify-content:center">
   <div class="modal-box" onclick="event.stopPropagation()">
     <button class="modal-close" onclick="closeAbout()">×</button>
     <h2 style="margin:0 0 4px;font-size:20px">DIMP</h2>
@@ -205,7 +205,7 @@
 </div>
 
 <!-- ── Version history modal ───────────────────────────────────────────── -->
-<div id="vh-overlay" class="modal-overlay" onclick="closeVersionHistory()" style="display:none">
+<div id="vh-overlay" class="modal-overlay" onclick="closeVersionHistory()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:800;align-items:center;justify-content:center">
   <div class="modal-box" onclick="event.stopPropagation()">
     <button class="modal-close" onclick="closeVersionHistory()">×</button>
     <h2 style="margin:0 0 14px;font-size:18px">Version History</h2>
@@ -213,7 +213,7 @@
   </div>
 </div>
 
-<div id="export-menu">
+<div id="export-menu" style="display:none">
   <button onclick="exportFormat('svg')">SVG</button>
   <button onclick="exportFormat('png')">PNG</button>
   <button onclick="exportFormat('jpg')">JPG</button>
@@ -223,11 +223,11 @@
 <input type="file" id="file-in" style="display:none" accept=".iconproj" onchange="onFileLoad(this)">
 
 <footer id="footer">
-  <span id="version-tag" title="Click for full version history">v0.0.20</span>
+  <span id="version-tag" title="Click for full version history">v0.0.21</span>
   <button onclick="openAbout()">About</button>
 </footer>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<script src="app.js"></script>
+<script src="app.js?v=21"></script>
 </body>
 </html>

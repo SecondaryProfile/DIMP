@@ -917,11 +917,11 @@ document.querySelectorAll('.tip').forEach(tip => {
 document.addEventListener('click', e => {
   _hideTip();
   const expMenu = document.getElementById('export-menu');
-  if (expMenu && expMenu.style.display !== 'none' && !expMenu.contains(e.target)) {
+  if (expMenu && expMenu.style.display === 'block' && !expMenu.contains(e.target)) {
     expMenu.style.display = 'none';
   }
   const cpPanel = document.getElementById('color-picker-panel');
-  if (cpPanel && cpPanel.style.display !== 'none' && !cpPanel.contains(e.target)) {
+  if (cpPanel && cpPanel.style.display === 'block' && !cpPanel.contains(e.target)) {
     if (_cpJustOpened) { _cpJustOpened = false; }
     else { closeColorPicker(); }
   }
@@ -929,6 +929,7 @@ document.addEventListener('click', e => {
 
 // ── Version history ───────────────────────────────────────────────────────────
 const VERSIONS = [
+  { v:'0.0.21', notes:'Fix: color picker panel hidden by default; About modal inline positioning; export menu inline hidden; document-click handler uses explicit display check; cache-bust CSS/JS' },
   { v:'0.0.20', notes:'Path curve hit-test (bezier-aware); custom color picker panel; About page; Version history footer; Favicon' },
   { v:'0.0.19', notes:'Eyedrop tool rename; eraser hover highlight (red); Export Image dropdown with PNG/JPG/WebP support' },
   { v:'0.0.18', notes:'Eraser and Eyedropper tools; corner radius greyed out unless shape selected; iOS/Android export tooltips' },
@@ -950,7 +951,7 @@ const VERSIONS = [
   { v:'0.0.2',  notes:'Added release support' },
   { v:'0.0.1',  notes:'Initial commit — Python/PyQt6 desktop application' },
 ];
-const CURRENT_VERSION = VERSIONS[0].v;
+const CURRENT_VERSION = '0.0.21';
 
 function openAbout() { document.getElementById('about-overlay').style.display='flex'; }
 function closeAbout() { document.getElementById('about-overlay').style.display='none'; }
