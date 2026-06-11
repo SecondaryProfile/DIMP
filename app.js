@@ -253,6 +253,18 @@ function onDown(e) {
 function onMove(e) {
   const pos=canvasPos(e); S.cursor=pos; S.curPos=pos;
 
+  if (S.tool==='eraser'&&S.mode==='draw') {
+    const prev=S.hover; S.hover=hitTest(pos)||null;
+    if (S.isDrawing&&S.hover) {
+      S.shapes.splice(S.shapes.indexOf(S.hover),1);
+      S.selected=S.selected.filter(s=>s!==S.hover);
+      S.hover=null; selWidget(); redraw();
+    } else if (S.hover!==prev) {
+      redraw();
+    }
+    return;
+  }
+
   if (S.tool==='eyedropper'&&S.mode==='draw') {
     const prev=S.hover; S.hover=hitTest(pos);
     if (S.hover) setColor(S.hover.stroke_color);
@@ -284,11 +296,6 @@ function onMove(e) {
   } else if (S.tool==='path'&&S.mode==='draw') {
     const ep=findSnap(pos); S.snapEp=ep; S.curPos=ep?ep:(S.gridSnapEnabled?snapGrid(pos):pos); redraw();
   } else if (S.isDrawing) {
-    if (S.tool==='eraser') {
-      const hit=hitTest(pos);
-      if (hit) { S.shapes.splice(S.shapes.indexOf(hit),1); S.selected=S.selected.filter(s=>s!==hit); selWidget(); redraw(); }
-      return;
-    }
     let p=pos;
     if (S.snapEnabled&&e.shiftKey) p=snapAngle(pos);
     else if (S.gridSnapEnabled) p=snapGrid(pos);
@@ -393,8 +400,10 @@ function redraw() {
   else drawChecker();
   if (S.gridEnabled) drawGrid();
   for (const s of S.shapes) {
-    const sel=S.selected.includes(s), hov=s===S.hover&&!sel;
-    drawShape(cx,s,{sel,hov});
+    const sel=S.selected.includes(s);
+    const hov=s===S.hover&&!sel&&S.tool!=='eraser';
+    const eraseHov=s===S.hover&&!sel&&S.tool==='eraser';
+    drawShape(cx,s,{sel,hov,eraseHov});
     if (sel&&s.type==='path') drawCurveHandles(cx,s);
   }
   if (S.isDrawing&&S.tool!=='eraser') drawShape(cx,mkShape(S.tool,S.startPos.x,S.startPos.y,S.curPos.x,S.curPos.y,{stroke_width:S.strokeWidth,stroke_color:S.strokeColor}),{preview:true});
@@ -430,15 +439,18 @@ function drawGrid() {
   cx.stroke();
 }
 
-function drawShape(c,s,{preview=false,sel=false,hov=false}={}) {
+function drawShape(c,s,{preview=false,sel=false,hov=false,eraseHov=false}={}) {
   c.save(); c.lineCap='round'; c.lineJoin='round';
   let col=s.stroke_color, lw=Math.max(1,s.stroke_width);
-  if (hov){col='#88bbff';lw+=1;} if (sel) col='#ff6b6b'; if (preview) col=S.strokeColor;
+  if (hov){col='#5bb4ff';lw+=1;}
+  if (eraseHov){col='#ff8585';lw+=1;}
+  if (sel) col='#ff6b6b';
+  if (preview) col=S.strokeColor;
   c.strokeStyle=col; c.lineWidth=lw;
   if (s.type==='path'){drawPath(c,s);c.restore();return;}
   const scx=(s.start_x+s.end_x)/2, scy=(s.start_y+s.end_y)/2;
   c.translate(scx,scy); c.rotate(s.rotation*Math.PI/180); c.translate(-scx,-scy);
-  if (s.type==='text') { drawTextShape(c,s,col,sel,hov); }
+  if (s.type==='text') { drawTextShape(c,s,col,sel,hov,eraseHov); }
   else if (s.type==='line') { c.beginPath();c.moveTo(s.start_x,s.start_y);c.lineTo(s.end_x,s.end_y);c.stroke(); }
   else if (s.type==='circle') { const r=Math.hypot(s.end_x-s.start_x,s.end_y-s.start_y)/2; c.beginPath();c.arc(scx,scy,r,0,Math.PI*2);c.stroke(); }
   else if (s.type==='square') {
@@ -467,12 +479,13 @@ function drawPath(c,s) {
   if (s.closed) c.closePath(); c.stroke();
 }
 
-function drawTextShape(c,s,col,sel,hov) {
+function drawTextShape(c,s,col,sel,hov,eraseHov=false) {
   c.font=`${s.font_size}pt ${s.font_family}`;
   const m=c.measureText(s.text), asc=m.actualBoundingBoxAscent??s.font_size*0.8;
-  if (sel||hov) {
+  if (sel||hov||eraseHov) {
     const w=s.end_x-s.start_x,h=s.end_y-s.start_y;
-    c.save();c.strokeStyle=sel?'#ff6b6b':'#88bbff';c.lineWidth=1;c.setLineDash([4,3]);
+    const outlineCol=sel?'#ff6b6b':eraseHov?'#ff8585':'#5bb4ff';
+    c.save();c.strokeStyle=outlineCol;c.lineWidth=1;c.setLineDash([4,3]);
     c.strokeRect(s.start_x-2,s.start_y-2,w+4,h+4);c.restore();
     if (sel) { c.save();c.strokeStyle='#ff6b6b';c.fillStyle='#fff';c.lineWidth=1;c.fillRect(s.end_x-5,s.end_y-5,10,10);c.strokeRect(s.end_x-5,s.end_y-5,10,10);c.restore(); }
   }
@@ -543,14 +556,29 @@ function refreshSwatches() {
 }
 function setColor(hex) { S.strokeColor=hex; document.getElementById('active-swatch').style.background=hex; }
 
-let colorCb=null;
-function pickCustom() { colorCb=c=>setColor(c); const el=document.getElementById('color-in'); el.value=S.strokeColor; el.click(); }
+function _openColorPicker(initial, onInput, onDone) {
+  const inp = document.createElement('input');
+  inp.type = 'color'; inp.value = initial;
+  inp.style.cssText = 'position:fixed;top:-200px;left:-200px;opacity:0;';
+  document.body.appendChild(inp);
+  inp.addEventListener('input', e => onInput(e.target.value));
+  inp.addEventListener('change', e => { onDone(e.target.value); document.body.removeChild(inp); });
+  inp.addEventListener('blur', () => { setTimeout(()=>{ if(inp.parentNode) document.body.removeChild(inp); }, 200); });
+  requestAnimationFrame(() => inp.click());
+}
+
+function pickCustom() {
+  _openColorPicker(S.strokeColor, v => setColor(v), v => setColor(v));
+}
 function pickSelColor() {
   if (!S.selected.length) return;
-  colorCb=c=>{ saveState(); for(const s of S.selected) s.stroke_color=c; selWidget(); redraw(); };
-  const el=document.getElementById('color-in'); el.value=S.selected.at(-1).stroke_color; el.click();
+  let saved = false;
+  _openColorPicker(
+    S.selected.at(-1).stroke_color,
+    v => { if (!saved) { saveState(); saved=true; } for(const s of S.selected) s.stroke_color=v; selWidget(); redraw(); },
+    v => { if (!saved) { saveState(); saved=true; } for(const s of S.selected) s.stroke_color=v; selWidget(); redraw(); }
+  );
 }
-function onColorPick(v) { if (colorCb){colorCb(v);colorCb=null;} }
 
 // ── Fonts ─────────────────────────────────────────────────────────────────────
 const fontSel=document.getElementById('font-sel');
@@ -678,7 +706,45 @@ function renderOffscreen(sz) {
   sc.getContext('2d').drawImage(oc,0,0,sz,sz); return sc;
 }
 
-// ── iOS export ────────────────────────────────────────────────────────────────
+// ── Image export (SVG / PNG / JPG / WebP) ────────────────────────────────────
+function toggleExportMenu(evt, btn) {
+  evt.stopPropagation();
+  const menu = document.getElementById('export-menu');
+  if (menu.style.display !== 'none') { menu.style.display='none'; return; }
+  const r = btn.getBoundingClientRect();
+  const mh = 128;
+  menu.style.minWidth = r.width + 'px';
+  menu.style.left = r.left + 'px';
+  menu.style.top = (r.bottom + mh > window.innerHeight - 8 ? r.top - mh : r.bottom + 2) + 'px';
+  menu.style.display = 'block';
+}
+
+function exportFormat(fmt) {
+  document.getElementById('export-menu').style.display = 'none';
+  if (fmt === 'svg') { exportSVG(); return; }
+  exportRaster(fmt);
+}
+
+function exportRaster(fmt) {
+  const src = renderOffscreen(S.canvasW);
+  let canvas = src;
+  if (fmt === 'jpg') {
+    canvas = document.createElement('canvas');
+    canvas.width = S.canvasW; canvas.height = S.canvasH;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = S.showBackground ? S.bgColor : '#ffffff';
+    ctx.fillRect(0, 0, S.canvasW, S.canvasH);
+    ctx.drawImage(src, 0, 0);
+  }
+  const mime = {jpg:'image/jpeg', png:'image/png', webp:'image/webp'}[fmt];
+  canvas.toBlob(blob => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `icon.${fmt}`;
+    a.click();
+  }, mime, fmt === 'jpg' ? 0.92 : undefined);
+}
+
 // ── iOS export — full AppIcon.appiconset bundle ───────────────────────────────
 async function exportIOS() {
   if (typeof JSZip==='undefined'){alert('JSZip not loaded.');return;}
@@ -792,7 +858,13 @@ document.querySelectorAll('.tip').forEach(tip => {
     _tipPopup.style.display === 'block' ? _hideTip() : _showTip(tip);
   });
 });
-document.addEventListener('click', _hideTip);
+document.addEventListener('click', e => {
+  _hideTip();
+  const menu = document.getElementById('export-menu');
+  if (menu && menu.style.display !== 'none' && !menu.contains(e.target)) {
+    menu.style.display = 'none';
+  }
+});
 
 // ── Unsaved-changes guard ─────────────────────────────────────────────────────
 window.addEventListener('beforeunload', e => {

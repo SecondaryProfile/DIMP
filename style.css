@@ -177,6 +177,31 @@ select {
   pointer-events: none;
 }
 
+/* Export image format dropdown */
+#export-menu {
+  display: none;
+  position: fixed;
+  z-index: 500;
+  background: #f5f5f5;
+  border: 1px solid #bbb;
+  border-radius: 4px;
+  box-shadow: 0 3px 10px rgba(0,0,0,.2);
+  overflow: hidden;
+}
+#export-menu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  border-bottom: 1px solid #e0e0e0;
+  border-radius: 0;
+  padding: 6px 12px;
+  font-size: 12px;
+  background: #f5f5f5;
+}
+#export-menu button:last-child { border-bottom: none; }
+#export-menu button:hover { background: #e0e0e0; }
+
 /* Instructions — styled shortcut reference */
 #instructions { font-size: 11px; }
 .ins-section  { margin-bottom: 8px; }
