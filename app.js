@@ -18,7 +18,7 @@ const FONTS = ["Arial","Arial Rounded MT Bold","Georgia","Times New Roman",
 // ── State ─────────────────────────────────────────────────────────────────────
 const S = {
   shapes:[], tool:'line', mode:'draw',
-  strokeWidth:10, strokeColor:'#1a1a1a', defaultCornerRadius:0,
+  strokeWidth:30, strokeColor:'#1a1a1a', defaultCornerRadius:0,
   selected:[], hover:null,
   isDrawing:false, startPos:{x:0,y:0}, curPos:{x:0,y:0},
   pathPoints:[], snapEp:null,
@@ -42,6 +42,12 @@ const cx = cv.getContext('2d');
 
 function initCanvas() {
   cv.width=S.canvasW; cv.height=S.canvasH;
+  // clamp zoom so canvas never overflows the scroll area
+  const sc = document.getElementById('canvas-scroll');
+  const maxW = (sc.clientWidth  || window.innerWidth  * 0.8) - 20;
+  const maxH = (sc.clientHeight || window.innerHeight * 0.7) - 20;
+  const fit  = Math.min(maxW / S.canvasW, maxH / S.canvasH);
+  if (S.zoom > fit) S.zoom = Math.max(0.1, fit);
   cv.style.width  = Math.round(S.canvasW * S.zoom) + 'px';
   cv.style.height = Math.round(S.canvasH * S.zoom) + 'px';
   redraw();
@@ -520,7 +526,21 @@ function updateSelFont() { for(const s of S.selected) if(s.type==='text'){s.font
 // ── Sidebar ───────────────────────────────────────────────────────────────────
 function setCornerRadius(v) { S.defaultCornerRadius=v; for(const s of S.selected) s.corner_radius=v; redraw(); }
 function makeSquare() { document.getElementById('ch').value=document.getElementById('cw').value; }
-function applySize() { S.canvasW=+document.getElementById('cw').value; S.canvasH=+document.getElementById('ch').value; cv.width=S.canvasW; cv.height=S.canvasH; redraw(); }
+function applySize() {
+  const cols = Math.max(4, Math.min(256, +document.getElementById('cw').value || 32));
+  const rows = Math.max(4, Math.min(256, +document.getElementById('ch').value || 32));
+  S.canvasW = cols * GRID;
+  S.canvasH = rows * GRID;
+  // auto-scale stroke to maintain visual weight: 960/gridSize (32→30, 100→~10)
+  S.strokeWidth = Math.max(1, Math.min(100, Math.round(960 / Math.max(cols, rows))));
+  document.getElementById('sw').value = S.strokeWidth;
+  // reset zoom to fit new canvas
+  const sc = document.getElementById('canvas-scroll');
+  const maxW = (sc.clientWidth  || window.innerWidth  * 0.8) - 20;
+  const maxH = (sc.clientHeight || window.innerHeight * 0.7) - 20;
+  S.zoom = Math.max(0.1, Math.min(8, Math.min(maxW / S.canvasW, maxH / S.canvasH)));
+  initCanvas();
+}
 function confirmClear() { if(confirm('Delete all shapes? Cannot be undone.')) { saveState();S.shapes=[];S.selected=[];S.pathPoints=[];selWidget();redraw(); } }
 
 function onSel(s) {
@@ -553,7 +573,7 @@ function onFileLoad(inp) {
     const pal=PALETTES.find(p=>p.name===d.palette)||PALETTES[0];
     palSel.value=PALETTES.indexOf(pal); S.palette=pal; S.bgColor=pal.bg; setColor(pal.icon); refreshSwatches();
     S.showBackground=d.show_background!==false; document.getElementById('chk-bg').checked=S.showBackground;
-    if (d.canvas_w) { S.canvasW=d.canvas_w;S.canvasH=d.canvas_h;cv.width=S.canvasW;cv.height=S.canvasH; document.getElementById('cw').value=S.canvasW; document.getElementById('ch').value=S.canvasH; }
+    if (d.canvas_w) { S.canvasW=d.canvas_w;S.canvasH=d.canvas_h; document.getElementById('cw').value=Math.round(S.canvasW/GRID); document.getElementById('ch').value=Math.round(S.canvasH/GRID); initCanvas(); }
     S.selected=[]; S.dirty=false; selWidget(); redraw();
   } catch(err){alert('Load failed: '+err.message);} };
   r.readAsText(f); inp.value='';
@@ -656,18 +676,36 @@ function switchTab(name) {
   if (btn) btn.classList.add('active');
 }
 
-// ── Tooltip toggle (works on both hover/desktop and tap/mobile) ───────────────
+// ── Tooltip system — fixed-position so it's always fully on screen ────────────
+const _tipPopup = document.createElement('div');
+_tipPopup.id = 'tip-popup';
+document.body.appendChild(_tipPopup);
+
+function _showTip(el) {
+  _tipPopup.textContent = el.dataset.tip;
+  _tipPopup.style.display = 'block';
+  const pw = _tipPopup.offsetWidth, ph = _tipPopup.offsetHeight;
+  const r  = el.getBoundingClientRect();
+  // prefer above the badge; fall back to below if not enough room
+  let top = r.top - ph - 8;
+  if (top < 8) top = r.bottom + 8;
+  // center horizontally on badge, clamp inside viewport
+  let left = r.left + r.width / 2 - pw / 2;
+  left = Math.max(8, Math.min(left, window.innerWidth - pw - 8));
+  _tipPopup.style.top  = top  + 'px';
+  _tipPopup.style.left = left + 'px';
+}
+function _hideTip() { _tipPopup.style.display = 'none'; }
+
 document.querySelectorAll('.tip').forEach(tip => {
+  tip.addEventListener('mouseenter', () => _showTip(tip));
+  tip.addEventListener('mouseleave', _hideTip);
   tip.addEventListener('click', e => {
     e.stopPropagation();
-    const wasOpen = tip.classList.contains('open');
-    document.querySelectorAll('.tip.open').forEach(t => t.classList.remove('open'));
-    if (!wasOpen) tip.classList.add('open');
+    _tipPopup.style.display === 'block' ? _hideTip() : _showTip(tip);
   });
 });
-document.addEventListener('click', () =>
-  document.querySelectorAll('.tip.open').forEach(t => t.classList.remove('open'))
-);
+document.addEventListener('click', _hideTip);
 
 // ── Unsaved-changes guard ─────────────────────────────────────────────────────
 window.addEventListener('beforeunload', e => {
