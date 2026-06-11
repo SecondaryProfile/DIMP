@@ -71,9 +71,13 @@
 
   <div id="sidebar">
     <div class="s-title">Canvas Size</div>
-    <div class="s-row"><label>W:</label><input type="number" id="cw" value="512" min="64" max="2048" step="64"></div>
-    <div class="s-row"><label>H:</label><input type="number" id="ch" value="512" min="64" max="2048" step="64"></div>
-    <button onclick="makeSquare()">Make Square</button>
+    <div class="s-size-grid">
+      <div class="s-size-fields">
+        <div class="s-row"><label>W:</label><input type="number" id="cw" value="512" min="64" max="2048" step="64"></div>
+        <div class="s-row"><label>H:</label><input type="number" id="ch" value="512" min="64" max="2048" step="64"></div>
+      </div>
+      <button class="s-square-btn" onclick="makeSquare()">Make<br>Square</button>
+    </div>
     <button onclick="applySize()">Apply Size</button>
     <hr class="s-sep">
     <div class="s-title">Corner Radius</div>
@@ -84,9 +88,9 @@
     </div>
     <hr class="s-sep">
     <div class="s-title">View</div>
-    <label><input type="checkbox" id="chk-bg"    checked onchange="S.showBackground=this.checked;redraw()"> Show Background</label>
-    <label><input type="checkbox" id="chk-snap"  checked onchange="S.snapEnabled=this.checked"> Snap on Rotate</label>
-    <label><input type="checkbox" id="chk-gsnap" checked onchange="S.gridSnapEnabled=this.checked;redraw()"> Snap to Grid</label>
+    <label class="s-check"><input type="checkbox" id="chk-bg" checked onchange="S.showBackground=this.checked;redraw()"> Show Background <span class="tip" data-tip="Shows or hides the background color layer. When off, the canvas is transparent (checkerboard pattern visible on export preview).">?</span></label>
+    <label class="s-check"><input type="checkbox" id="chk-snap" checked onchange="S.snapEnabled=this.checked"> Snap on Rotate <span class="tip" data-tip="Hold Shift while rotating with right-drag to snap the angle to 45° increments.">?</span></label>
+    <label class="s-check"><input type="checkbox" id="chk-gsnap" checked onchange="S.gridSnapEnabled=this.checked;redraw()"> Snap to Grid <span class="tip" data-tip="Snaps shape placement and movement to the 16px grid for precise alignment.">?</span></label>
     <hr class="s-sep">
     <div class="s-title">Selected Shape</div>
     <div class="s-row" id="sel-row" style="opacity:.4;pointer-events:none">
@@ -101,35 +105,44 @@
     <button onclick="exportIOS()">Export iOS (zip)</button>
     <button onclick="exportAndroid()">Export Android (zip)</button>
     <hr class="s-sep">
-    <div id="instructions">── Desktop ──
-Left drag: Draw/Move
-Right drag: Rotate
-Scroll: Fine-rotate sel.
-Pinch / Ctrl+Scroll: Zoom
-Shift+drag: Angle snap
-Del: Delete shape
-Ctrl+Z/Y: Undo/Redo
-
-── Mobile ──
-Finger drag: Draw/Move
-Double-tap: Edit/Close
-
-── Text ──
-Click: Place
-Dbl-click: Edit
-Drag corner: Resize
-
-── Path ──
-Click: Add point
-Click start: Close loop
-Right-click: Finish open
-Dbl-click: Finish open
-Del: Remove last point
-Esc: Cancel
-
-── Select mode ──
-Select path, then drag
-orange handles = curve</div>
+    <div id="instructions">
+      <div class="ins-section">
+        <div class="ins-hdr">Desktop</div>
+        <div class="ins-row"><kbd>Drag</kbd><span>Draw / Move</span></div>
+        <div class="ins-row"><kbd>Right drag</kbd><span>Rotate</span></div>
+        <div class="ins-row"><kbd>Scroll</kbd><span>Fine-rotate</span></div>
+        <div class="ins-row"><kbd>Pinch</kbd><span>Zoom in/out</span></div>
+        <div class="ins-row"><kbd>Shift+drag</kbd><span>Angle snap</span></div>
+        <div class="ins-row"><kbd>Del</kbd><span>Delete shape</span></div>
+        <div class="ins-row"><kbd>Ctrl Z/Y</kbd><span>Undo / Redo</span></div>
+      </div>
+      <div class="ins-section">
+        <div class="ins-hdr">Mobile</div>
+        <div class="ins-row"><kbd>Drag</kbd><span>Draw / Move</span></div>
+        <div class="ins-row"><kbd>Double-tap</kbd><span>Edit / Close path</span></div>
+      </div>
+      <div class="ins-section">
+        <div class="ins-hdr">Text tool</div>
+        <div class="ins-row"><kbd>Click</kbd><span>Place text</span></div>
+        <div class="ins-row"><kbd>Dbl-click</kbd><span>Edit text</span></div>
+        <div class="ins-row"><kbd>Drag corner</kbd><span>Resize</span></div>
+      </div>
+      <div class="ins-section">
+        <div class="ins-hdr">Path tool</div>
+        <div class="ins-row"><kbd>Click</kbd><span>Add point</span></div>
+        <div class="ins-row"><kbd>Click start</kbd><span>Close loop</span></div>
+        <div class="ins-row"><kbd>Right-click</kbd><span>Finish open</span></div>
+        <div class="ins-row"><kbd>Dbl-click</kbd><span>Finish open</span></div>
+        <div class="ins-row"><kbd>Del</kbd><span>Remove last pt</span></div>
+        <div class="ins-row"><kbd>Esc</kbd><span>Cancel</span></div>
+      </div>
+      <div class="ins-section">
+        <div class="ins-hdr">Select mode</div>
+        <div class="ins-row"><kbd>Click shape</kbd><span>Select</span></div>
+        <div class="ins-row"><kbd>Shift+click</kbd><span>Multi-select</span></div>
+        <div class="ins-note">Select a path, then drag its orange handles to curve segments.</div>
+      </div>
+    </div>
     <hr class="s-sep">
     <div id="info">Ready</div>
   </div>
@@ -137,7 +150,8 @@ orange handles = curve</div>
 
 <div id="overlay" onclick="toggleSidebar()"></div>
 
-<input type="color" id="color-in" style="display:none" oninput="onColorPick(this.value)">
+<!-- Positioned off-screen so .click() reliably opens the native picker -->
+<input type="color" id="color-in" style="position:fixed;left:-200px;top:-200px;opacity:0;pointer-events:none" oninput="onColorPick(this.value)" onchange="onColorPick(this.value)">
 <input type="file"  id="file-in"  style="display:none" accept=".iconproj" onchange="onFileLoad(this)">
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>

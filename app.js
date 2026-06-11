@@ -25,7 +25,7 @@ const S = {
   undoStack:[], redoStack:[],
   bgColor:'#f8f8f8', showBackground:true, gridEnabled:true,
   snapEnabled:true, gridSnapEnabled:true,
-  textFontFamily:'Arial Rounded MT Bold', textFontSize:24,
+  textFontFamily:'Trebuchet MS', textFontSize:24,
   palette:PALETTES[0],
   canvasW:512, canvasH:512, zoom:1, dirty:false,
   // interaction
@@ -655,6 +655,19 @@ function switchTab(name) {
   const btn = document.querySelector('#tb-tabs [data-tab="' + name + '"]');
   if (btn) btn.classList.add('active');
 }
+
+// ── Tooltip toggle (works on both hover/desktop and tap/mobile) ───────────────
+document.querySelectorAll('.tip').forEach(tip => {
+  tip.addEventListener('click', e => {
+    e.stopPropagation();
+    const wasOpen = tip.classList.contains('open');
+    document.querySelectorAll('.tip.open').forEach(t => t.classList.remove('open'));
+    if (!wasOpen) tip.classList.add('open');
+  });
+});
+document.addEventListener('click', () =>
+  document.querySelectorAll('.tip.open').forEach(t => t.classList.remove('open'))
+);
 
 // ── Unsaved-changes guard ─────────────────────────────────────────────────────
 window.addEventListener('beforeunload', e => {
