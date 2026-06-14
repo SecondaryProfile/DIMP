@@ -449,6 +449,14 @@ document.addEventListener('keydown', e=>{
     const del=S.selected.filter(s=>S.shapes.includes(s));
     if (del.length){saveState();del.forEach(s=>S.shapes.splice(S.shapes.indexOf(s),1));S.selected=[];selWidget();redraw();}
   }
+  if ((e.key==='ArrowUp'||e.key==='ArrowDown')&&S.mode==='select'&&S.selected.length) {
+    e.preventDefault();
+    const dir=e.key==='ArrowUp'?-1:1;
+    for (const t of S.selected)
+      t.rotation=e.shiftKey?Math.round(t.rotation/45)*45+dir*45:t.rotation+dir;
+    redraw();
+    return;
+  }
   const map={q:'select',l:'line',c:'circle',s:'square',t:'triangle',p:'path',w:'text',e:'eraser',i:'eyedropper',f:'fill'};
   if (!ctrl&&map[e.key.toLowerCase()]) {
     const v=map[e.key.toLowerCase()]; v==='select'?setMode('select'):setTool(v);
