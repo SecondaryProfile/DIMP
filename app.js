@@ -37,7 +37,7 @@ const S = {
   bgColor:'#f8f8f8', showBackground:true, gridEnabled:true,
   snapEnabled:true, gridSnapEnabled:true,
   textFontFamily:'Trebuchet MS', textFontSize:24,
-  palette:PALETTES[0],
+  palette:PALETTES[0], darkMode:false,
   canvasW:512, canvasH:512, zoom:1, dirty:false,
   // interaction
   moving:[], moveStart:{x:0,y:0}, moveStartSnap:{x:0,y:0}, moveOrigins:[],
@@ -700,12 +700,12 @@ const palSel=document.getElementById('pal-sel');
 PALETTES.forEach((p,i)=>{ const o=document.createElement('option');o.value=i;o.textContent=p.name;palSel.appendChild(o); });
 
 function applyPalette(idx) {
-  const p=PALETTES[idx], old=S.palette; S.palette=p; S.bgColor=p.bg;
+  const p=PALETTES[idx], old=S.palette; S.palette=p; S.bgColor=p.bg; S.darkMode=false;
   for (const s of S.shapes) {
     if (s.stroke_color.toLowerCase()===old.icon.toLowerCase()) s.stroke_color=p.icon;
     else if (s.stroke_color.toLowerCase()===old.acc.toLowerCase()) s.stroke_color=p.acc;
   }
-  setColor(p.icon); refreshSwatches(); redraw();
+  setColor(p.icon); refreshSwatches(); updateDarkBtn(); redraw();
 }
 function refreshSwatches() {
   const p=S.palette;
@@ -715,6 +715,33 @@ function refreshSwatches() {
   sa.style.background=p.acc; sa.onclick=()=>setColor(p.acc);
 }
 function setColor(hex) { S.strokeColor=hex; document.getElementById('active-swatch').style.background=hex; }
+function updateDarkBtn() {
+  const btn=document.getElementById('btn-dark'); if (!btn) return;
+  btn.textContent=S.darkMode?'Light':'Dark'; btn.classList.toggle('active',S.darkMode);
+}
+function toggleDarkMode() {
+  S.darkMode=!S.darkMode; const p=S.palette;
+  if (S.darkMode) {
+    S.bgColor=p.icon;
+    for (const s of S.shapes) {
+      if (s.stroke_color.toLowerCase()===p.icon.toLowerCase()) s.stroke_color=p.bg;
+      else if (s.stroke_color.toLowerCase()===p.bg.toLowerCase()) s.stroke_color=p.icon;
+    }
+  } else {
+    S.bgColor=p.bg;
+    for (const s of S.shapes) {
+      if (s.stroke_color.toLowerCase()===p.bg.toLowerCase()) s.stroke_color=p.icon;
+      else if (s.stroke_color.toLowerCase()===p.icon.toLowerCase()) s.stroke_color=p.bg;
+    }
+  }
+  updateDarkBtn(); redraw();
+}
+function exportColorPair() {
+  const p=S.palette;
+  return S.darkMode
+    ? { light:{bg:p.bg, sub:{from:p.bg,to:p.icon}}, dark:{bg:p.icon, sub:null} }
+    : { light:{bg:p.bg, sub:null}, dark:{bg:p.icon, sub:{from:p.icon,to:p.bg}} };
+}
 
 // ── Custom color picker panel ─────────────────────────────────────────────────
 let _cpCallback = null, _cpJustOpened = false;
@@ -846,18 +873,20 @@ function onFileLoad(inp) {
 }
 
 // ── Export SVG ────────────────────────────────────────────────────────────────
-function exportSVG() {
+function exportSVG({bg=null,sub=null,suffix=''}={}) {
+  const useBg=bg??S.palette.bg;
   const w=S.canvasW,h=S.canvasH;
   const lines=[`<?xml version="1.0" encoding="UTF-8"?>`,`<svg width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg">`];
-  if (S.showBackground) lines.push(`<rect width="${w}" height="${h}" fill="${S.palette.bg}"/>`);
-  for (const s of S.shapes) lines.push(toSVG(s));
+  if (S.showBackground) lines.push(`<rect width="${w}" height="${h}" fill="${useBg}"/>`);
+  for (const s of S.shapes) lines.push(toSVG(s,sub));
   lines.push('</svg>');
   const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([lines.join('\n')],{type:'image/svg+xml'}));
-  a.download='icon.svg'; a.click();
+  a.download=`icon${suffix}.svg`; a.click();
 }
-function toSVG(s) {
+function toSVG(s,sub=null) {
+  const mapCol=c=>(sub&&c.toLowerCase()===sub.from.toLowerCase())?sub.to:c;
   if (s.type==='fill_region') return `<image href="${s.dataURL}" x="0" y="0" width="${s.w}" height="${s.h}"/>`;
-  const sw=Math.max(1,Math.round(s.stroke_width)),c=s.stroke_color;
+  const sw=Math.max(1,Math.round(s.stroke_width)),c=mapCol(s.stroke_color);
   if (s.type==='path') {
     const pts=s.points,n=pts.length; if(n<2) return '';
     let d=`M ${pts[0][0].toFixed(1)} ${pts[0][1].toFixed(1)}`;
@@ -883,22 +912,25 @@ function toSVG(s) {
 }
 
 // ── Offscreen render ──────────────────────────────────────────────────────────
-function renderOffscreen(sz) {
+function renderOffscreen(sz, {bg=null,sub=null}={}) {
+  const useBg=bg??S.bgColor;
+  const mapCol=c=>(sub&&c.toLowerCase()===sub.from.toLowerCase())?sub.to:c;
   const oc=document.createElement('canvas'); oc.width=S.canvasW; oc.height=S.canvasH;
   const oc2=oc.getContext('2d'); oc2.lineCap='round'; oc2.lineJoin='round';
-  if (S.showBackground){oc2.fillStyle=S.bgColor;oc2.fillRect(0,0,S.canvasW,S.canvasH);}
+  if (S.showBackground){oc2.fillStyle=useBg;oc2.fillRect(0,0,S.canvasW,S.canvasH);}
   for (const s of S.shapes) if (s.type==='fill_region') drawShape(oc2,s);
   for (const s of S.shapes) {
     if (s.type==='fill_region') continue;
-    oc2.save(); oc2.lineCap='round'; oc2.lineJoin='round'; oc2.strokeStyle=s.stroke_color; oc2.lineWidth=Math.max(1,s.stroke_width);
-    if (s.type==='path'){drawPath(oc2,s);oc2.restore();continue;}
+    const col=mapCol(s.stroke_color);
+    oc2.save(); oc2.lineCap='round'; oc2.lineJoin='round'; oc2.strokeStyle=col; oc2.lineWidth=Math.max(1,s.stroke_width);
+    if (s.type==='path'){if(s.rotation){const{x:pcx,y:pcy}=pathCenter(s);oc2.translate(pcx,pcy);oc2.rotate(s.rotation*Math.PI/180);oc2.translate(-pcx,-pcy);}drawPath(oc2,s);oc2.restore();continue;}
     const scx=(s.start_x+s.end_x)/2,scy=(s.start_y+s.end_y)/2;
     oc2.translate(scx,scy);oc2.rotate(s.rotation*Math.PI/180);oc2.translate(-scx,-scy);
     if (s.type==='line'){oc2.beginPath();oc2.moveTo(s.start_x,s.start_y);oc2.lineTo(s.end_x,s.end_y);oc2.stroke();}
     else if (s.type==='circle'){const r=Math.hypot(s.end_x-s.start_x,s.end_y-s.start_y)/2;oc2.beginPath();oc2.arc(scx,scy,r,0,Math.PI*2);oc2.stroke();}
     else if (s.type==='square'){const x=Math.min(s.start_x,s.end_x),y=Math.min(s.start_y,s.end_y),w2=Math.abs(s.end_x-s.start_x),h2=Math.abs(s.end_y-s.start_y);oc2.beginPath();if(s.corner_radius>0){const r=s.corner_radius;oc2.moveTo(x+r,y);oc2.lineTo(x+w2-r,y);oc2.arcTo(x+w2,y,x+w2,y+r,r);oc2.lineTo(x+w2,y+h2-r);oc2.arcTo(x+w2,y+h2,x+w2-r,y+h2,r);oc2.lineTo(x+r,y+h2);oc2.arcTo(x,y+h2,x,y+h2-r,r);oc2.lineTo(x,y+r);oc2.arcTo(x,y,x+r,y,r);oc2.closePath();}else oc2.rect(x,y,w2,h2);oc2.stroke();}
     else if (s.type==='triangle'){const x1=s.start_x,y1=s.start_y,x2=s.end_x,y2=s.end_y,mx=(x1+x2)/2,my=(y1+y2)/2,dx=x2-x1,dy=y2-y1;oc2.beginPath();oc2.moveTo(x1,y1);oc2.lineTo(x2,y2);oc2.lineTo(mx-dy/2,my+dx/2);oc2.closePath();oc2.stroke();}
-    else if (s.type==='text'){oc2.font=`${s.font_size}pt ${s.font_family}`;const mm=oc2.measureText(s.text);oc2.fillStyle=s.stroke_color;oc2.fillText(s.text,s.start_x,s.start_y+(mm.actualBoundingBoxAscent??s.font_size*0.8));}
+    else if (s.type==='text'){oc2.font=`${s.font_size}pt ${s.font_family}`;const mm=oc2.measureText(s.text);oc2.fillStyle=col;oc2.fillText(s.text,s.start_x,s.start_y+(mm.actualBoundingBoxAscent??s.font_size*0.8));}
     oc2.restore();
   }
   if (sz===S.canvasW) return oc;
@@ -921,18 +953,20 @@ function toggleExportMenu(evt, btn) {
 
 function exportFormat(fmt) {
   document.getElementById('export-menu').style.display = 'none';
-  if (fmt === 'svg') { exportSVG(); return; }
-  exportRaster(fmt);
+  const {light,dark}=exportColorPair();
+  if (fmt === 'svg') { exportSVG({...light,suffix:'_light'}); exportSVG({...dark,suffix:'_dark'}); return; }
+  exportRaster(fmt, {...light, suffix:'_light'});
+  exportRaster(fmt, {...dark,  suffix:'_dark'});
 }
 
-function exportRaster(fmt) {
-  const src = renderOffscreen(S.canvasW);
+function exportRaster(fmt, {bg=null,sub=null,suffix=''}={}) {
+  const src = renderOffscreen(S.canvasW, {bg,sub});
   let canvas = src;
   if (fmt === 'jpg') {
     canvas = document.createElement('canvas');
     canvas.width = S.canvasW; canvas.height = S.canvasH;
     const ctx = canvas.getContext('2d');
-    ctx.fillStyle = S.showBackground ? S.bgColor : '#ffffff';
+    ctx.fillStyle = S.showBackground ? (bg??S.bgColor) : '#ffffff';
     ctx.fillRect(0, 0, S.canvasW, S.canvasH);
     ctx.drawImage(src, 0, 0);
   }
@@ -940,7 +974,7 @@ function exportRaster(fmt) {
   canvas.toBlob(blob => {
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `icon.${fmt}`;
+    a.download = `icon${suffix}.${fmt}`;
     a.click();
   }, mime, fmt === 'jpg' ? 0.92 : undefined);
 }
@@ -948,7 +982,6 @@ function exportRaster(fmt) {
 // ── iOS export — full AppIcon.appiconset bundle ───────────────────────────────
 async function exportIOS() {
   if (typeof JSZip==='undefined'){alert('JSZip not loaded.');return;}
-  // [pt_size, scale, idiom]  —  pixel = pt * scale  (83.5@2x = 167px for iPad Pro)
   const specs = [
     [20,    2, 'iphone'], [20,    3, 'iphone'],
     [29,    2, 'iphone'], [29,    3, 'iphone'],
@@ -958,23 +991,26 @@ async function exportIOS() {
     [29,    1, 'ipad'],   [29,    2, 'ipad'],
     [40,    1, 'ipad'],   [40,    2, 'ipad'],
     [76,    1, 'ipad'],   [76,    2, 'ipad'],
-    [83.5,  2, 'ipad'],   // iPad Pro 9.7" / 10.5"
+    [83.5,  2, 'ipad'],
     [1024,  1, 'ios-marketing'],
   ];
-  const zip = new JSZip(), folder = zip.folder('AppIcon.appiconset');
-  const cache = new Map(), images = [];
-  for (const [pt, sc, idiom] of specs) {
-    const px = Math.round(pt * sc);
-    const fn = `Icon-${pt}@${sc}x${idiom === 'ipad' ? '~ipad' : ''}.png`;
-    if (!cache.has(px)) cache.set(px, await new Promise(r => renderOffscreen(px).toBlob(r, 'image/png')));
-    folder.file(fn, cache.get(px));
-    images.push({ idiom, scale:`${sc}x`, size:`${pt}x${pt}`, filename:fn });
+  const zip = new JSZip();
+  const {light,dark}=exportColorPair();
+  for (const [mode,opts] of [['light',light],['dark',dark]]) {
+    const folder=zip.folder(mode).folder('AppIcon.appiconset');
+    const cache=new Map(), images=[];
+    for (const [pt,sc,idiom] of specs) {
+      const px=Math.round(pt*sc);
+      const fn=`Icon-${pt}@${sc}x${idiom==='ipad'?'~ipad':''}.png`;
+      if (!cache.has(px)) cache.set(px, await new Promise(r=>renderOffscreen(px,opts).toBlob(r,'image/png')));
+      folder.file(fn, cache.get(px));
+      images.push({idiom, scale:`${sc}x`, size:`${pt}x${pt}`, filename:fn});
+    }
+    folder.file('Contents.json', JSON.stringify({images, info:{author:'xcode',version:1}},null,2));
   }
-  folder.file('Contents.json', JSON.stringify({ images, info:{ author:'xcode', version:1 } }, null, 2));
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(await zip.generateAsync({ type:'blob' }));
-  a.download = `dimp_appiconset_ios_${_exportTs()}.zip`;
-  a.click();
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(await zip.generateAsync({type:'blob'}));
+  a.download=`dimp_appiconset_ios_${_exportTs()}.zip`; a.click();
 }
 
 // ── Android export — res/ launcher icon bundle ────────────────────────────────
@@ -987,20 +1023,22 @@ async function exportAndroid() {
     ['mipmap-xxhdpi',  144],
     ['mipmap-xxxhdpi', 192],
   ];
-  const zip = new JSZip(), res = zip.folder('res');
-  for (const [dir, sz] of densities) {
-    const blob = await new Promise(r => renderOffscreen(sz).toBlob(r, 'image/png'));
-    const f = res.folder(dir);
-    f.file('ic_launcher.png', blob);
-    f.file('ic_launcher_round.png', blob); // same art; devs replace foreground for adaptive
+  const zip = new JSZip();
+  const {light,dark}=exportColorPair();
+  for (const [mode,opts] of [['light',light],['dark',dark]]) {
+    const res=zip.folder(mode).folder('res');
+    for (const [dir,sz] of densities) {
+      const blob=await new Promise(r=>renderOffscreen(sz,opts).toBlob(r,'image/png'));
+      const f=res.folder(dir);
+      f.file('ic_launcher.png', blob);
+      f.file('ic_launcher_round.png', blob);
+    }
+    res.folder('playstore').file('ic_launcher_512.png',
+      await new Promise(r=>renderOffscreen(512,opts).toBlob(r,'image/png')));
   }
-  // Play Store high-res icon
-  res.folder('playstore').file('ic_launcher_512.png',
-    await new Promise(r => renderOffscreen(512).toBlob(r, 'image/png')));
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(await zip.generateAsync({ type:'blob' }));
-  a.download = `dimp_appiconset_android_${_exportTs()}.zip`;
-  a.click();
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(await zip.generateAsync({type:'blob'}));
+  a.download=`dimp_appiconset_android_${_exportTs()}.zip`; a.click();
 }
 
 function _exportTs() {
