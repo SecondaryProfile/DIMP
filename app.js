@@ -109,6 +109,11 @@ function allEndpoints() {
 function findSnap(pos) { return allEndpoints().find(e=>Math.hypot(pos.x-e.x,pos.y-e.y)<CLOSE_THR*2)||null; }
 
 // ── Hit test ──────────────────────────────────────────────────────────────────
+function pathCenter(s) {
+  let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
+  for (const [x,y] of s.points){if(x<minX)minX=x;if(x>maxX)maxX=x;if(y<minY)minY=y;if(y>maxY)maxY=y;}
+  return {x:(minX+maxX)/2,y:(minY+maxY)/2};
+}
 function nearSeg(p,x1,y1,x2,y2,tol) {
   const dx=x2-x1,dy=y2-y1;
   if (!dx&&!dy) return Math.hypot(p.x-x1,p.y-y1)<tol;
@@ -126,6 +131,13 @@ function nearQBez(p,x0,y0,cpx,cpy,x1,y1,tol) {
 function inShape(p,s) {
   if (s.type==='fill_region') return false;
   if (s.type==='path') {
+    let tp=p;
+    if (s.rotation) {
+      const {x:pcx,y:pcy}=pathCenter(s);
+      const rad=s.rotation*Math.PI/180,cos=Math.cos(-rad),sin=Math.sin(-rad);
+      const dx=p.x-pcx,dy=p.y-pcy;
+      tp={x:pcx+dx*cos-dy*sin,y:pcy+dx*sin+dy*cos};
+    }
     const tol=s.stroke_width+5,pts=s.points,n=pts.length;
     const segs=s.closed?n:n-1;
     for (let i=0;i<segs;i++) {
@@ -134,10 +146,10 @@ function inShape(p,s) {
       const cv2=i<s.curves.length?s.curves[i]:0;
       if (cv2) {
         const mx=(x1+x2)/2,my=(y1+y2)/2,ddx=x2-x1,ddy=y2-y1,segl=Math.hypot(ddx,ddy);
-        if (segl>0) { if (nearQBez(p,x1,y1,mx-ddy/segl*cv2,my+ddx/segl*cv2,x2,y2,tol)) return true; }
-        else if (nearSeg(p,x1,y1,x2,y2,tol)) return true;
+        if (segl>0) { if (nearQBez(tp,x1,y1,mx-ddy/segl*cv2,my+ddx/segl*cv2,x2,y2,tol)) return true; }
+        else if (nearSeg(tp,x1,y1,x2,y2,tol)) return true;
       } else {
-        if (nearSeg(p,x1,y1,x2,y2,tol)) return true;
+        if (nearSeg(tp,x1,y1,x2,y2,tol)) return true;
       }
     }
     return false;
@@ -175,6 +187,13 @@ function hitTest(p) { for (let i=S.shapes.length-1;i>=0;i--) if (inShape(p,S.sha
 // ── Path/text handle helpers ──────────────────────────────────────────────────
 function pathHandleAt(pos,s) {
   const pts=s.points,n=pts.length; if (n<2) return null;
+  let lpos=pos;
+  if (s.rotation) {
+    const {x:pcx,y:pcy}=pathCenter(s);
+    const rad=s.rotation*Math.PI/180,cos=Math.cos(-rad),sin=Math.sin(-rad);
+    const dx=pos.x-pcx,dy=pos.y-pcy;
+    lpos={x:pcx+dx*cos-dy*sin,y:pcy+dx*sin+dy*cos};
+  }
   const segs=s.closed?n:n-1;
   for (let i=0;i<segs;i++) {
     const ei=(s.closed&&i===n-1)?0:i+1;
@@ -183,7 +202,7 @@ function pathHandleAt(pos,s) {
     const dx=x2-x1,dy=y2-y1,len=Math.hypot(dx,dy);
     let hx=mx,hy=my;
     if (len>0){const nx=-dy/len,ny=dx/len;hx=mx+nx*c;hy=my+ny*c;}
-    if (Math.hypot(pos.x-hx,pos.y-hy)<12) return i;
+    if (Math.hypot(lpos.x-hx,lpos.y-hy)<12) return i;
   }
   return null;
 }
@@ -527,7 +546,10 @@ function drawShape(c,s,{preview=false,sel=false,hov=false,eraseHov=false,fillHov
     else if (!s._img.complete) {} // onload will redraw
     c.restore(); return;
   }
-  if (s.type==='path'){drawPath(c,s);c.restore();return;}
+  if (s.type==='path'){
+    if (s.rotation){const{x:pcx,y:pcy}=pathCenter(s);c.translate(pcx,pcy);c.rotate(s.rotation*Math.PI/180);c.translate(-pcx,-pcy);}
+    drawPath(c,s);c.restore();return;
+  }
   const scx=(s.start_x+s.end_x)/2, scy=(s.start_y+s.end_y)/2;
   c.translate(scx,scy); c.rotate(s.rotation*Math.PI/180); c.translate(-scx,-scy);
   if (s.type==='text') { drawTextShape(c,s,col,sel,hov,eraseHov); }
@@ -587,6 +609,7 @@ function drawPathPreview() {
 function drawCurveHandles(c,s) {
   const pts=s.points,n=pts.length; if (n<2) return;
   const segs=s.closed?n:n-1; c.save();
+  if (s.rotation){const{x:pcx,y:pcy}=pathCenter(s);c.translate(pcx,pcy);c.rotate(s.rotation*Math.PI/180);c.translate(-pcx,-pcy);}
   for (let i=0;i<segs;i++) {
     const ei=(s.closed&&i===n-1)?0:i+1;
     const [x1,y1]=pts[i],[x2,y2]=pts[ei],mx=(x1+x2)/2,my=(y1+y2)/2,cv2=i<s.curves.length?s.curves[i]:0;
