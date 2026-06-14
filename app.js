@@ -1113,6 +1113,7 @@ document.addEventListener('click', e => {
 
 // ── Version history ───────────────────────────────────────────────────────────
 const VERSIONS = [
+  { v:'0.0.24', notes:'Dark mode toggle in Color toolbar (swaps BG/Icon palette colors, active stroke color, and all matching shapes); stroke-only hit-testing for shapes (inner shapes now selectable through outer shapes); path rotation support (scroll, right-drag, arrow keys); Shift+arrow keys snap selected shapes to 45°; dual light/dark export for all formats (PNG/JPG/WebP/SVG split into _light/_dark; iOS and Android zips include light/ and dark/ subfolders)' },
   { v:'0.0.23', notes:'Raster flood-fill (Fill tool fills enclosed regions); 12 new color themes; tools split into 2 rows of 6; 2-second hover tooltips on tool buttons' },
   { v:'0.0.22', notes:'Fill tool (bucket fill on shapes, f key); active color box replaces … button; Corner Radius moved to Selected Shape section' },
   { v:'0.0.21', notes:'Fix: color picker panel hidden by default; About modal inline positioning; export menu inline hidden; document-click handler uses explicit display check; cache-bust CSS/JS' },
@@ -1137,7 +1138,7 @@ const VERSIONS = [
   { v:'0.0.2',  notes:'Added release support' },
   { v:'0.0.1',  notes:'Initial commit — Python/PyQt6 desktop application' },
 ];
-const CURRENT_VERSION = '0.0.23';
+const CURRENT_VERSION = '0.0.24';
 
 function openAbout() { document.getElementById('about-overlay').style.display='flex'; }
 function closeAbout() { document.getElementById('about-overlay').style.display='none'; }
