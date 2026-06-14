@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>DIMP</title>
   <link rel="icon" type="image/png" href="icon.png">
-  <link rel="stylesheet" href="style.css?v=24">
+  <link rel="stylesheet" href="style.css?v=25">
 </head>
 <body>
 
@@ -94,6 +94,7 @@
     <label class="s-check"><input type="checkbox" id="chk-bg" checked onchange="S.showBackground=this.checked;redraw()"> Show Background <span class="tip" data-tip="Shows or hides the background color layer. When off, the canvas is transparent (checkerboard pattern visible on export preview).">?</span></label>
     <label class="s-check"><input type="checkbox" id="chk-snap" checked onchange="S.snapEnabled=this.checked"> Snap on Rotate <span class="tip" data-tip="Hold Shift while rotating with right-drag to snap the angle to 45° increments.">?</span></label>
     <label class="s-check"><input type="checkbox" id="chk-gsnap" checked onchange="S.gridSnapEnabled=this.checked;redraw()"> Snap to Grid <span class="tip" data-tip="Snaps shape placement and movement to the 16px grid for precise alignment.">?</span></label>
+    <label class="s-check"><input type="checkbox" id="chk-mirror" onchange="S.mirrorDraw=this.checked"> Mirror Draw <span class="tip" data-tip="Each shape drawn is also mirrored horizontally around the canvas center.">?</span></label>
     <hr class="s-sep">
     <div class="s-title">Selected Shape</div>
     <div class="s-row" id="sel-row" style="opacity:.4;pointer-events:none">
@@ -106,6 +107,38 @@
       <label>px</label>
       <span class="tip" data-tip="Sets corner rounding (px) on the selected shape. Visually affects squares only.">?</span>
     </div>
+    <div class="s-row" id="sel-op-row" style="opacity:.4;pointer-events:none">
+      <label>Opacity:</label>
+      <input type="range" id="sel-op" min="1" max="100" value="100" style="flex:1;min-width:0" oninput="setOpacity(+this.value)">
+      <span id="sel-op-val" style="font-size:11px;width:32px;text-align:right">100%</span>
+    </div>
+    <div class="s-row" id="sel-fill-row" style="opacity:.4;pointer-events:none">
+      <label class="s-check"><input type="checkbox" id="sel-filled" onchange="setFilled(this.checked)"> Filled</label>
+    </div>
+    <div class="s-row" id="sel-z-row" style="opacity:.4;pointer-events:none;gap:2px">
+      <span style="font-size:11px;color:#666;margin-right:2px">Z:</span>
+      <button onclick="zOrder(-2)" title="Send to Back" style="padding:2px 5px">⬇⬇</button>
+      <button onclick="zOrder(-1)" title="Send Back" style="padding:2px 5px">⬇</button>
+      <button onclick="zOrder(1)"  title="Bring Forward" style="padding:2px 5px">⬆</button>
+      <button onclick="zOrder(2)"  title="Bring to Front" style="padding:2px 5px">⬆⬆</button>
+    </div>
+    <div class="s-row" id="sel-align-row" style="opacity:.4;pointer-events:none;gap:2px;flex-wrap:wrap">
+      <button onclick="alignShapes('l')"  title="Align Left"   style="padding:2px 4px">⊢</button>
+      <button onclick="alignShapes('cx')" title="Center H"     style="padding:2px 4px">⊣⊢</button>
+      <button onclick="alignShapes('r')"  title="Align Right"  style="padding:2px 4px">⊣</button>
+      <button onclick="alignShapes('t')"  title="Align Top"    style="padding:2px 4px">⊤</button>
+      <button onclick="alignShapes('cy')" title="Center V"     style="padding:2px 4px">⊥⊤</button>
+      <button onclick="alignShapes('b')"  title="Align Bottom" style="padding:2px 4px">⊥</button>
+    </div>
+    <div class="s-row" id="sel-dist-row" style="opacity:.4;pointer-events:none;gap:2px">
+      <span style="font-size:11px;color:#666">Dist:</span>
+      <button onclick="distributeShapes('h')" title="Distribute Horizontally" style="padding:2px 5px">↔</button>
+      <button onclick="distributeShapes('v')" title="Distribute Vertically"   style="padding:2px 5px">↕</button>
+    </div>
+    <hr class="s-sep">
+    <div class="s-title">Library</div>
+    <button onclick="saveToLibrary()" title="Save selected shapes to reusable library" style="opacity:.9">Save Selection</button>
+    <div id="lib-list"></div>
     <hr class="s-sep">
     <div class="s-title">File</div>
     <button onclick="saveProject()">Save (.iconproj)</button>
@@ -113,6 +146,8 @@
     <button id="export-img-btn" onclick="toggleExportMenu(event,this)">Export Image ▾</button>
     <div style="display:flex;align-items:center;gap:4px"><button style="flex:1" onclick="exportIOS()">Export iOS (zip)</button><span class="tip" data-tip="Exports AppIcon.appiconset for Xcode: all iPhone sizes (40–180px) and iPad sizes (20–167px) at @1x/@2x/@3x, plus the 1024px App Store marketing icon. Drop into Xcode's Assets.xcassets.">?</span></div>
     <div style="display:flex;align-items:center;gap:4px"><button style="flex:1" onclick="exportAndroid()">Export Android (zip)</button><span class="tip" data-tip="Exports Android launcher icons into mipmap folders: mdpi (48px), hdpi (72px), xhdpi (96px), xxhdpi (144px), xxxhdpi (192px) — each with ic_launcher and ic_launcher_round — plus a 512px Play Store icon.">?</span></div>
+    <button onclick="exportFaviconICO()">Export Favicon (.ico)</button>
+    <button onclick="exportICNS()">Export macOS (.icns)</button>
     <hr class="s-sep">
     <div id="instructions">
 
@@ -190,7 +225,7 @@
   <div class="modal-box" onclick="event.stopPropagation()">
     <button class="modal-close" onclick="closeAbout()">×</button>
     <h2 style="margin:0 0 4px;font-size:20px">DIMP</h2>
-    <p style="color:#888;font-size:12px;margin:0 0 14px">Digital Icon Maker & Painter</p>
+    <p style="color:#888;font-size:12px;margin:0 0 14px">Icon Maker Program</p>
     <p>A web-based icon design tool built for speed and simplicity. Draw icons directly in your browser with vector shapes, paths, and text — no installs required.</p>
     <hr style="margin:14px 0;border:none;border-top:1px solid #eee">
     <p><strong>Features</strong></p>
@@ -227,11 +262,11 @@
 <input type="file" id="file-in" style="display:none" accept=".iconproj" onchange="onFileLoad(this)">
 
 <footer id="footer">
-  <span id="version-tag" title="Click for full version history">v0.0.24</span>
+  <span id="version-tag" title="Click for full version history">v0.0.25</span>
   <button onclick="openAbout()">About</button>
 </footer>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<script src="app.js?v=24"></script>
+<script src="app.js?v=25"></script>
 </body>
 </html>

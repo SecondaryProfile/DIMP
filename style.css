@@ -179,6 +179,13 @@ select {
 /* Checkbox rows with tooltip badge */
 .s-check { display: flex; align-items: center; gap: 2px; flex-wrap: nowrap; }
 
+/* Range input */
+input[type=range] { height: 18px; cursor: pointer; accent-color: #4a90d9; }
+
+/* Library entries */
+.lib-entry { gap: 3px; flex-wrap: nowrap; }
+.lib-name  { flex: 1; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 /* Tooltip badge */
 .tip {
   display: inline-flex;
