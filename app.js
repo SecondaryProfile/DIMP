@@ -723,12 +723,14 @@ function toggleDarkMode() {
   S.darkMode=!S.darkMode; const p=S.palette;
   if (S.darkMode) {
     S.bgColor=p.icon;
+    if (S.strokeColor.toLowerCase()===p.icon.toLowerCase()) setColor(p.bg);
     for (const s of S.shapes) {
       if (s.stroke_color.toLowerCase()===p.icon.toLowerCase()) s.stroke_color=p.bg;
       else if (s.stroke_color.toLowerCase()===p.bg.toLowerCase()) s.stroke_color=p.icon;
     }
   } else {
     S.bgColor=p.bg;
+    if (S.strokeColor.toLowerCase()===p.bg.toLowerCase()) setColor(p.icon);
     for (const s of S.shapes) {
       if (s.stroke_color.toLowerCase()===p.bg.toLowerCase()) s.stroke_color=p.icon;
       else if (s.stroke_color.toLowerCase()===p.icon.toLowerCase()) s.stroke_color=p.bg;
