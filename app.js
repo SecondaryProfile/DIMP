@@ -143,9 +143,32 @@ function inShape(p,s) {
     return false;
   }
   if (s.type==='text') { const t=4; return p.x>=s.start_x-t&&p.x<=s.end_x+t&&p.y>=s.start_y-t&&p.y<=s.end_y+t; }
+  // Un-rotate test point around shape center so hit test works in local space
+  const scx=(s.start_x+s.end_x)/2, scy=(s.start_y+s.end_y)/2;
+  let lp=p;
+  if (s.rotation) {
+    const rad=s.rotation*Math.PI/180, cos=Math.cos(-rad), sin=Math.sin(-rad);
+    const dx=p.x-scx, dy=p.y-scy;
+    lp={x:scx+dx*cos-dy*sin, y:scy+dx*sin+dy*cos};
+  }
   const t=s.stroke_width+5;
-  return p.x>=Math.min(s.start_x,s.end_x)-t&&p.x<=Math.max(s.start_x,s.end_x)+t
-      && p.y>=Math.min(s.start_y,s.end_y)-t&&p.y<=Math.max(s.start_y,s.end_y)+t;
+  const x1=s.start_x,y1=s.start_y,x2=s.end_x,y2=s.end_y;
+  if (s.type==='line') return nearSeg(lp,x1,y1,x2,y2,t);
+  if (s.type==='circle') {
+    const r=Math.hypot(x2-x1,y2-y1)/2;
+    return Math.abs(Math.hypot(lp.x-scx,lp.y-scy)-r)<=t;
+  }
+  if (s.type==='square') {
+    const lx=Math.min(x1,x2),ly=Math.min(y1,y2),rx=Math.max(x1,x2),ry=Math.max(y1,y2);
+    return nearSeg(lp,lx,ly,rx,ly,t)||nearSeg(lp,rx,ly,rx,ry,t)||
+           nearSeg(lp,rx,ry,lx,ry,t)||nearSeg(lp,lx,ry,lx,ly,t);
+  }
+  if (s.type==='triangle') {
+    const mx=(x1+x2)/2,my=(y1+y2)/2,dx=x2-x1,dy=y2-y1;
+    const tx=mx-dy/2,ty=my+dx/2;
+    return nearSeg(lp,x1,y1,x2,y2,t)||nearSeg(lp,x2,y2,tx,ty,t)||nearSeg(lp,tx,ty,x1,y1,t);
+  }
+  return false;
 }
 function hitTest(p) { for (let i=S.shapes.length-1;i>=0;i--) if (inShape(p,S.shapes[i])) return S.shapes[i]; return null; }
 
